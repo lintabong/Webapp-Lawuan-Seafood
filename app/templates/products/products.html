@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Product Inventory{% endblock %}
+{% block page_title %}Product Inventory{% endblock %}
+
+{% block content %}
+    <div class="container-fluid py-0">
+        <div class="card shadow-sm mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Product</th>
+                            <th>Unit</th>
+                            <th>Buy Price</th>
+                            <th>Sell Price</th>
+                            <th>Stock</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="productsGrid">
+                        {% for product in products %}
+                            <tr
+                                data-stock-level="{% if product.stock > 2 %}high{% elif product.stock > 0 %}medium{% else %}low{% endif %}"
+                                data-product-name="{{ product.name|lower }}">
+
+                                <td class="text-muted">{{ loop.index }}</td>
+                                <td class="fw-semibold">{{ product.name }}</td>
+                                <td class="fw-semibold">{{ product.unit }}</td>
+                                <td>{{ product.buy_price|currency }}</td>
+                                <td>{{ product.sell_price|currency }}</td>
+                                <td>
+                                    <span class="badge
+                                        {% if product.stock > 2 %}bg-success
+                                        {% elif product.stock > 0 %}bg-warning
+                                        {% else %}bg-danger{% endif %}">
+                                        {{ product.stock }} {{ product.unit }}
+                                    </span>
+                                </td>
+
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-secondary"
+                                            onclick="editProduct({{ loop.index0 }})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger ms-1"
+                                            onclick="deleteProduct({{ loop.index0 }})">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        let currentFilter = 'all';
+
+        function addProduct() {
+            alert('Add Product functionality\n\nThis would open a modal or form to add a new product.');
+        }
+
+        function editProduct(index) {
+            alert(`Edit Product #${index + 1}\n\nThis would open an edit form for the selected product.`);
+        }
+
+        function deleteProduct(index) {
+            if (confirm('Are you sure you want to delete this product?')) {
+                alert(`Product #${index + 1} deleted\n\nThis would send a delete request to the server.`);
+            }
+        }
+    </script>
+{% endblock %}

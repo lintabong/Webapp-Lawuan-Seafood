@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Orders{% endblock %}
+{% block page_title %}Orders Management{% endblock %}
+
+{% block content %}
+    <div class="container-fluid py-4">
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <a href="{{ url_for('orders.create') }}" class="text-decoration-none">
+                    <div class="card shadow-sm h-100 border-0">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="me-3 text-primary fs-2">
+                                <i class="bi bi-plus-circle"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-1 fw-bold">Create Order</h6>
+                                <small class="text-muted">Add a new customer order</small>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- DELIVERY ORDERS -->
+            <div class="col-md-4">
+                <a href="{{ url_for('orders.route') }}" class="text-decoration-none">
+                    <div class="card shadow-sm h-100 border-0">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="me-3 text-info fs-2">
+                                <i class="bi bi-truck"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-1 fw-bold">Delivery Orders</h6>
+                                <small class="text-muted">Orders to be delivered</small>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- PICKUP ORDERS -->
+            <div class="col-md-4">
+                    <div class="card shadow-sm h-100 border-0">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="me-3 text-secondary fs-2">
+                                <i class="bi bi-shop"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-1 fw-bold">Pickup Orders</h6>
+                                <small class="text-muted">In-store pickup orders</small>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+        </div>
+
+        {% if orders|length == 0 %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No orders found. Create your first order!
+            </div>
+        {% else %}
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle table-sm">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Customer</th>
+                                    <th>Date</th>
+                                    <th>Delivery</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Created By</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in orders %}
+                                    <tr>
+                                        <td><strong>#{{ order.id }}</strong></td>
+                                        <td>
+                                            <div class="fw-semibold">
+                                                {{ order.customer_name }}
+                                            </div>
+                                            <div class="small text-muted opacity-75">
+                                                <i class="bi bi-telephone"></i>
+                                                {{ order.customer_phone or 'N/A' }}
+                                            </div>
+                                            <div class="small text-muted opacity-75">
+                                                <i class="bi bi-geo-alt"></i>
+                                                {{ order.customer_address or 'N/A' }}
+                                            </div>
+                                        </td>
+                                        <td>{{ order.order_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td class="justify">
+                                            {% if order.delivery_type == 'delivery' %}
+                                                <span class="badge bg-info">
+                                                    <i class="bi bi-truck"></i>
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="bi bi-shop"></i>
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="fw-bold">{{ order.total_amount|currency }}</td>
+                                        <td>
+                                            {% if order.status == 'pending' %}
+                                                <span class="badge bg-warning text-dark">Pending</span>
+                                            {% elif order.status == 'paid' %}
+                                                <span class="badge bg-success">Paid</span>
+                                            {% elif order.status == 'delivered' %}
+                                                <span class="badge bg-primary">Delivered</span>
+                                            {% elif order.status == 'cancelled' %}
+                                                <span class="badge bg-danger">Cancelled</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ order.created_by_name or 'N/A' }}</td>
+                                        <td>
+                                            <a href="{{ url_for('orders.view', order_id=order.id) }}" 
+                                            class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i> View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

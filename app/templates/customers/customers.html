@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Management{% endblock %}
+{% block page_title %}Customer Management{% endblock %}
+
+
+{% block content %}
+    <div class="container-fluid h-100 py">
+        <div class="row g-1">
+            <aside class="col-md-4 col-lg-4">
+                <div class="mb-2 d-grid">
+                    <a href="/customers/create" class="btn btn-primary btn-sm py-2">
+                        <i class="bi bi-person-plus"></i> Insert Customer
+                    </a>
+                </div>
+                <!-- Search -->
+                <div class="mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input
+                            type="text"
+                            id="customer-search-input"
+                            class="form-control"
+                            placeholder="Search"
+                            onkeyup="filterCustomers()"
+                        >
+                    </div>
+                </div>
+
+                <!-- Customer List -->
+                <ul class="list-group overflow-auto" id="customer-list" style="max-height: calc(100vh - 240px);">
+                    <li class="list-group-item text-center text-muted">
+                        <div class="spinner-border spinner-border-sm me-2"></div>
+                        Loading customers...
+                    </li>
+                </ul>
+
+            </aside>
+
+            <!-- Map Section -->
+            <div class="col-md-8 col-lg-8">
+                <div class="position-relative">
+
+                <!-- Map Controls -->
+                <div class="position-absolute top-0 end-0 m-3 z-3">
+            <button class="btn btn-primary btn-sm shadow"
+                    onclick="fitMapBounds()">
+                <i class="bi bi-fullscreen"></i> Fit All
+            </button>
+            </div>
+                <!-- Map -->
+                <div id="map" class="w-100 rounded border" style="height: calc(100vh - 150px);"></div>
+            </div>
+            </div>
+
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        const depot = {
+            lat: {{ depot.lat }},
+            lng: {{ depot.lng }},
+            name: '{{ depot.name }}'
+        };
+
+        var map = L.map('map').setView([depot.lat, depot.lng], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        var depotIcon = L.icon({
+            iconUrl:  "{{ url_for('static', filename='icons/stockroom.png') }}",
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        var customerIcon = L.icon({
+            iconUrl:  "{{ url_for('static', filename='icons/placeholder.png') }}",
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        var depotMarker = L.marker([depot.lat, depot.lng], {icon: depotIcon})
+            .addTo(map)
+            .bindPopup(`
+                <div class="popup-title">${depot.name}</div>
+                <div class="popup-info">
+                    <strong>Starting Point</strong><br>
+                    📍 ${depot.lat.toFixed(6)}, ${depot.lng.toFixed(6)}
+                </div>
+            `);
+
+        var customers = [];
+        var allCustomers = [];
+        var customerMarkers = [];
+        var waypoints = [L.latLng(depot.lat, depot.lng)];
+        var routingControl = null;
+        var showingRoute = false;
+
+        fetch('/api/customers')
+            .then(response => response.json())
+            .then(data => {
+                customers = data;
+                allCustomers = data;
+                renderCustomerList();
+                addCustomerMarkers();
+                // fitMapBounds();
+            })
+            .catch(error => {
+                console.error('Error fetching customers:', error);
+                document.getElementById('customer-list').innerHTML = `
+                    <li class="empty-state">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <p>Error loading customers</p>
+                    </li>
+                `;
+            });
+
+        function renderCustomerList() {
+            const customerList = document.getElementById('customer-list');
+
+            if (customers.length === 0) {
+                customerList.innerHTML = `
+                    <li class="list-group-item text-center text-muted">
+                        <i class="bi bi-people fs-4 d-block mb-2"></i>
+                        No customers found
+                    </li>
+                `;
+                return;
+            }
+
+            customerList.innerHTML = customers.map(customer => {
+                const index = allCustomers.indexOf(customer);
+
+                return `
+                <li class="list-group-item list-group-item-action mb-2 rounded shadow-sm"
+                onclick="focusCustomer(${index}, ${customer.latitude}, ${customer.longitude})">
+
+                <div class="d-flex justify-content-between align-items-start">
+
+                    <!-- LEFT: Customer Info -->
+                    <div>
+                        <div class="fw-semibold mb-1">
+                            <span class="badge bg-primary me-2">
+                                ${index + 1}
+                            </span>
+                            ${customer.name}
+                        </div>
+
+                        <div class="small text-muted">
+                            <i class="bi bi-telephone"></i>
+                            ${customer.phone || 'N/A'}
+                        </div>
+
+                        <div class="small text-muted">
+                            <i class="bi bi-geo-alt"></i>
+                            ${customer.address || ''}
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Actions -->
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="event.stopPropagation(); editCustomer(${index})"
+                                title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="event.stopPropagation(); deleteCustomer(${index})"
+                                title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+
+                </div>
+            </li>`;
+            }).join('');
+        }
+
+        function addCustomerMarkers() {
+            customerMarkers.forEach(marker => map.removeLayer(marker));
+            customerMarkers = [];
+            waypoints = [L.latLng(depot.lat, depot.lng)];
+
+            allCustomers.forEach((customer, index) => {
+                if (customer.latitude == null || customer.longitude == null) {
+                    return;
+                }
+
+                var marker = L.marker([customer.latitude, customer.longitude], {icon: customerIcon})
+                    .addTo(map)
+                    .bindPopup(`
+                        <div class="popup-title">👤 ${customer.name}</div>
+                        <div class="popup-info">
+                            <i class="bi bi-telephone"></i> ${customer.phone || 'N/A'}<br>
+                            <i class="bi bi-geo-alt"></i> ${customer.latitude}, ${customer.longitude}
+                        </div>
+                    `);
+                
+                marker.on('click', function() {
+                    focusCustomer(index, customer.latitude, customer.longitude);
+                });
+                
+                customerMarkers.push(marker);
+                waypoints.push(L.latLng(customer.latitude, customer.longitude));
+            });
+
+            waypoints.push(L.latLng(depot.lat, depot.lng));
+        }
+
+        function focusCustomer(index, lat, lng) {
+            document.querySelectorAll('.customer-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            const items = document.querySelectorAll('.customer-item');
+            items.forEach(item => {
+                const itemIndex = parseInt(item.querySelector('.customer-number').textContent) - 1;
+                if (itemIndex === index) {
+                    item.classList.add('active');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+
+            map.setView([lat, lng], 16);
+            var marker = customerMarkers[index];
+            marker.openPopup();
+        }
+
+        function editCustomer(index) {
+            const customer = allCustomers[index];
+            alert(`Editing customer: ${customer.name}\n\nThis would open an edit form in a real application.`);
+        }
+
+        function filterCustomers() {
+            const searchTerm = document.getElementById('customer-search-input').value.toLowerCase();
+            
+            customers = allCustomers.filter(customer => {
+                return customer.name.toLowerCase().includes(searchTerm) ||
+                    (customer.phone && customer.phone.includes(searchTerm));
+            });
+            
+            renderCustomerList();
+        }
+
+        function fitMapBounds() {
+            if (customerMarkers.length > 0) {
+                var group = new L.featureGroup([depotMarker, ...customerMarkers]);
+                map.fitBounds(group.getBounds().pad(0.1));
+            } else {
+                map.setView([depot.lat, depot.lng], 13);
+            }
+        }
+    </script>
+{% endblock %}
