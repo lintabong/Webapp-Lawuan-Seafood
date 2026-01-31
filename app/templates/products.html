@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}Products{% endblock %}
+{% block page_title %}Products{% endblock %}
+
+{% block content %}
+<!-- Header with Add Button -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div></div>
+  <button class="btn btn-primary" onclick="showAddModal()">
+    <i class="bi bi-plus-circle"></i> Add Product
+  </button>
+</div>
+
+<!-- Filters -->
+<div class="card p-3 mb-4">
+  <div class="row g-3">
+    <div class="col-md-4">
+      <input type="text" id="searchInput" class="form-control" placeholder="Search product name...">
+    </div>
+    <div class="col-md-3">
+      <select id="statusFilter" class="form-select">
+        <option value="all">All Status</option>
+        <option value="true" selected>Active Only</option>
+        <option value="false">Inactive Only</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary w-100" onclick="loadProducts()">
+        <i class="bi bi-search"></i> Search
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading skeleton -->
+<div id="productsLoading">
+  <div class="card mb-3 p-3">
+    <div class="skeleton skeleton-lg mb-2"></div>
+    <div class="skeleton"></div>
+  </div>
+  <div class="card mb-3 p-3">
+    <div class="skeleton skeleton-lg mb-2"></div>
+    <div class="skeleton"></div>
+  </div>
+</div>
+
+<!-- Products list -->
+<div id="productsList" class="hidden"></div>
+
+<!-- Empty state -->
+<div id="emptyState" class="hidden text-center py-5">
+  <i class="bi bi-box" style="font-size: 3rem; color: #ccc;"></i>
+  <p class="text-muted mt-3">No products found</p>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal fade" id="productModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Add Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="productForm">
+          <input type="hidden" id="productId">
+          
+          <div class="mb-3">
+            <label class="form-label">Product Name *</label>
+            <input type="text" class="form-control" id="productName" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Unit</label>
+            <input type="text" class="form-control" id="productUnit" value="kg">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Buy Price *</label>
+            <input type="number" class="form-control" id="productBuyPrice" step="0.01" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Sell Price *</label>
+            <input type="number" class="form-control" id="productSellPrice" step="0.01" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Stock</label>
+            <input type="number" class="form-control" id="productStock" step="0.01" value="0">
+          </div>
+          
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="productActive" checked>
+              <label class="form-check-label" for="productActive">
+                Active
+              </label>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveProduct()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let productModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+  productModal = new bootstrap.Modal(document.getElementById('productModal'));
+  loadProducts();
+});
+
+function formatRupiah(amount) {
+  return new Intl.NumberFormat('id-ID').format(amount);
+}
+
+function showToast(message, type) {
+  const toast = document.createElement('div');
+  toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed top-0 end-0 m-3`;
+  toast.style.zIndex = '9999';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function showAddModal() {
+  document.getElementById('modalTitle').textContent = 'Add Product';
+  document.getElementById('productForm').reset();
+  document.getElementById('productId').value = '';
+  document.getElementById('productActive').checked = true;
+  productModal.show();
+}
+
+function editProduct(product) {
+  document.getElementById('modalTitle').textContent = 'Edit Product';
+  document.getElementById('productId').value = product.id;
+  document.getElementById('productName').value = product.name;
+  document.getElementById('productUnit').value = product.unit;
+  document.getElementById('productBuyPrice').value = product.buy_price;
+  document.getElementById('productSellPrice').value = product.sell_price;
+  document.getElementById('productStock').value = product.stock;
+  document.getElementById('productActive').checked = product.is_active;
+  productModal.show();
+}
+
+async function saveProduct() {
+  const productId = document.getElementById('productId').value;
+  const data = {
+    name: document.getElementById('productName').value,
+    unit: document.getElementById('productUnit').value,
+    buy_price: parseFloat(document.getElementById('productBuyPrice').value),
+    sell_price: parseFloat(document.getElementById('productSellPrice').value),
+    stock: parseFloat(document.getElementById('productStock').value),
+    is_active: document.getElementById('productActive').checked
+  };
+  
+  try {
+    const url = productId ? `/api/products/${productId}` : '/api/products';
+    const method = productId ? 'PUT' : 'POST';
+    
+    const response = await fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to save product');
+    }
+    
+    productModal.hide();
+    showToast('Product saved successfully', 'success');
+    loadProducts();
+    
+  } catch (error) {
+    console.error('Error saving product:', error);
+    showToast(error.message, 'error');
+  }
+}
+
+async function toggleProductStatus(productId, currentStatus, cardElement) {
+  try {
+    const response = await fetch(`/api/products/${productId}/toggle`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !currentStatus })
+    });
+    
+    if (!response.ok) throw new Error('Failed to update status');
+    
+    showToast('Status updated successfully', 'success');
+    loadProducts();
+    
+  } catch (error) {
+    console.error('Error updating status:', error);
+    showToast('Failed to update status', 'error');
+  }
+}
+
+async function loadProducts() {
+  const loadingEl = document.getElementById('productsLoading');
+  const listEl = document.getElementById('productsList');
+  const emptyEl = document.getElementById('emptyState');
+  
+  try {
+    loadingEl.classList.remove('hidden');
+    listEl.classList.add('hidden');
+    emptyEl.classList.add('hidden');
+    
+    const status = document.getElementById('statusFilter').value;
+    const search = document.getElementById('searchInput').value;
+    
+    const params = new URLSearchParams();
+    if (status !== 'all') params.append('is_active', status);
+    if (search) params.append('search', search);
+    
+    const response = await fetch(`/api/products?${params}`);
+    const products = await response.json();
+    
+    loadingEl.classList.add('hidden');
+    
+    if (products.length === 0) {
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+    
+    listEl.innerHTML = products.map(product => {
+      const profit = product.sell_price - product.buy_price;
+      const profitPercent = ((profit / product.buy_price) * 100).toFixed(1);
+      
+      return `
+        <div class="card mb-3" id="product-${product.id}">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div>
+                <h5 class="card-title mb-1">
+                  <i class="bi bi-box"></i> ${product.name}
+                </h5>
+                <span class="badge ${product.is_active ? 'bg-success' : 'bg-secondary'}">
+                  ${product.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              <button class="btn btn-sm btn-outline-primary" onclick='editProduct(${JSON.stringify(product)})'>
+                <i class="bi bi-pencil"></i> Edit
+              </button>
+            </div>
+            
+            <div class="row g-3 mb-3">
+              <div class="col-md-3">
+                <small class="text-muted d-block">Stock</small>
+                <strong>${product.stock} ${product.unit}</strong>
+              </div>
+              <div class="col-md-3">
+                <small class="text-muted d-block">Buy Price</small>
+                <strong>Rp ${formatRupiah(product.buy_price)}</strong>
+              </div>
+              <div class="col-md-3">
+                <small class="text-muted d-block">Sell Price</small>
+                <strong>Rp ${formatRupiah(product.sell_price)}</strong>
+              </div>
+              <div class="col-md-3">
+                <small class="text-muted d-block">Profit</small>
+                <strong class="text-success">
+                  Rp ${formatRupiah(profit)}
+                  <small class="d-block">(${profitPercent}%)</small>
+                </strong>
+              </div>
+            </div>
+            
+            <div class="border-top pt-3">
+              <button class="btn btn-sm ${product.is_active ? 'btn-outline-danger' : 'btn-outline-success'}" 
+                      onclick="toggleProductStatus(${product.id}, ${product.is_active}, this.closest('.card'))">
+                <i class="bi bi-toggle-${product.is_active ? 'on' : 'off'}"></i>
+                ${product.is_active ? 'Deactivate' : 'Activate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    listEl.classList.remove('hidden');
+    
+  } catch (error) {
+    console.error('Error loading products:', error);
+    loadingEl.classList.add('hidden');
+    showToast('Failed to load products', 'error');
+  }
+}
+
+// Enter key on search
+document.getElementById('searchInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') loadProducts();
+});
+</script>
+{% endblock %}

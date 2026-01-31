@@ -1,3 +1,4 @@
+
 import logging
 import os
 from logging.handlers import RotatingFileHandler
@@ -7,12 +8,12 @@ class AppLogger:
     _loggers = {}
 
     @staticmethod
-    def get_logger(name: str = "app"):
+    def get_logger(name: str = 'app'):
         if name in AppLogger._loggers:
             return AppLogger._loggers[name]
 
         # Log level from ENV (default INFO)
-        log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+        log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
 
         logger = logging.getLogger(name)
         logger.setLevel(log_level)
@@ -30,7 +31,7 @@ class AppLogger:
             logger.addHandler(console_handler)
 
             # File handler (rotating)
-            log_dir = "logs"
+            log_dir = 'logs'
             os.makedirs(log_dir, exist_ok=True)
 
             file_handler = RotatingFileHandler(

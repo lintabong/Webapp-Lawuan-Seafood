@@ -1,46 +1,63 @@
-
 from flask import (
-    Blueprint, render_template, request, flash, redirect, url_for
+    Blueprint,
+    render_template,
+    jsonify,
+    session
 )
-from app.models.customer import Customer
-from app.constants import DEPOT
+from app.lib.supabase_client import supabase
+from app.helpers.auth import login_required
 
 customers_bp = Blueprint('customers', __name__)
 
-@customers_bp.route('/')
-def list():
-    customers = Customer.get_all()
-    return render_template(
-        'customers/customers.html', 
-        customers=customers, 
-        depot=DEPOT
-    )
+@customers_bp.route('/customers')
+@login_required
+def customers_page():
+    return render_template('customers_map.html')
 
-@customers_bp.route('/create', methods=['GET', 'POST'])
-def create():
-    if request.method == 'POST':
-        name = request.form.get('name')
-        phone = request.form.get('phone')
-        address = request.form.get('address')
-        latlng = request.form.get('latlng')
 
-        latitude = None
-        longitude = None
+@customers_bp.route('/api/customers')
+@login_required
+def api_customers():
+    try:
+        access_token = session.get('access_token')
+        if not access_token:
+            return jsonify({'error': 'Unauthorized'}), 401
 
-        if latlng:
-            try:
-                lat_str, lng_str = latlng.split(',')
-                latitude = float(lat_str.strip())
-                longitude = float(lng_str.strip())
-            except ValueError:
-                flash('Invalid latitude, longitude format', 'danger')
-                return redirect(url_for('customers.create'))
+        supabase.postgrest.auth(access_token)
 
-        try:
-            Customer.create(name, phone, address, latitude, longitude)
-            flash('Customer created successfully', 'success')
-            return redirect(url_for('customers.list'))
-        except Exception as e:
-            flash(f'Error saving customer: {e}', 'danger')
+        response = (
+            supabase
+            .table('customers')
+            .select('''
+                id,
+                name,
+                phone,
+                address,
+                latitude,
+                longitude,
+                created_at
+            ''')
+            .order('name')
+            .execute()
+        )
 
-    return render_template('customers/create_customer.html')
+        customers = []
+
+        for c in response.data:
+            print(c)
+            if c['latitude'] is not None and c['longitude'] is not None:
+                customers.append({
+                    'id': c['id'],
+                    'name': c['name'],
+                    'phone': c['phone'],
+                    'address': c['address'],
+                    'latitude': float(c['latitude']),
+                    'longitude': float(c['longitude'])
+                })
+
+        return jsonify(customers)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500

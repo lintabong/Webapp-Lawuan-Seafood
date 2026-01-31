@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Customers{% endblock %}
+{% block page_title %}Customers{% endblock %}
+
+{% block content %}
+    <style>
+        #map {
+            height: calc(100vh - 180px);
+            min-height: 300px;
+        }
+    </style>
+
+    <div class="row g-3">
+        <!-- LEFT: Customer List -->
+        <div class="col-md-4">
+            <div class="card" style="max-height: calc(100vh - 180px); overflow-y: auto;">
+                <div class="card-body p-2">
+                    <div id="customerList">
+                        <div class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm"></div>
+                            <p class="text-muted mt-2 mb-0">Loading customers...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: MAP -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-0 position-relative">
+                    <div class="position-absolute top-0 end-0 m-3" style="z-index: 1000;">
+                        <button class="btn btn-primary btn-sm shadow" onclick="fitMapBounds()">
+                            <i class="bi bi-fullscreen"></i> Fit All
+                        </button>
+                    </div>
+                    <div id="map" class="rounded"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const depot = {
+            lat: -7.586659740785085,
+            lng: 110.94502385669738,
+            name: 'Main Depot'
+        };
+
+        const map = L.map('map').setView([depot.lat, depot.lng], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        // const depotMarker = L.marker([depot.lat, depot.lng])
+        //     .addTo(map)
+        //     .bindPopup(`<b>${depot.name}</b>`);
+
+        var depotIcon = L.icon({
+            iconUrl:  "{{ url_for('static', filename='icons/stockroom.png') }}",
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        var customerIcon = L.icon({
+            iconUrl:  "{{ url_for('static', filename='icons/placeholder.png') }}",
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        var depotMarker = L.marker([depot.lat, depot.lng], {icon: depotIcon})
+            .addTo(map)
+            .bindPopup(`
+                <div class="popup-title">${depot.name}</div>
+                <div class="popup-info">
+                    <strong>Starting Point</strong><br>
+                    📍 ${depot.lat.toFixed(6)}, ${depot.lng.toFixed(6)}
+                </div>
+            `);
+
+        let markers = [];
+        let bounds = L.latLngBounds([[depot.lat, depot.lng]]);
+
+        async function loadCustomers() {
+            const res = await fetch('/api/customers');
+            const data = await res.json();
+
+            if (!Array.isArray(data)) {
+                document.getElementById('customerList').innerHTML =
+                    `<div class="alert alert-danger">${data.error}</div>`;
+                return;
+            }
+
+            renderCustomers(data);
+            renderMarkers(data);
+        }
+
+        function renderCustomers(customers) {
+            const el = document.getElementById('customerList');
+
+            if (!customers.length) {
+                el.innerHTML = `<p class="text-muted text-center">No customers found</p>`;
+                return;
+            }
+
+            el.innerHTML = customers.map((c, i) => {
+                const hasLocation = c.latitude !== null && c.longitude !== null;
+
+                return `
+                <div class="card mb-2 ${hasLocation ? '' : 'border-warning'}"
+                    ${hasLocation
+                        ? `onclick="focusCustomer(${c.latitude}, ${c.longitude})"`
+                        : ''}>
+
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <b>${i + 1}. ${c.name}</b>
+
+                            ${!hasLocation
+                                ? `<span class="badge bg-warning text-dark">No Location</span>`
+                                : ''}
+                        </div>
+
+                        <small class="text-muted">${c.phone || 'N/A'}</small><br>
+                        <small>${c.address || ''}</small>
+
+                        ${!hasLocation
+                            ? `<div class="text-danger small mt-1">
+                                <i class="bi bi-geo-alt"></i>
+                                Latitude / Longitude missing
+                            </div>`
+                            : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function renderMarkers(customers) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            bounds = L.latLngBounds([[depot.lat, depot.lng]]);
+
+            customers.forEach(c => {
+                if (c.latitude === null || c.longitude === null) {
+                    return; // ❗ safely skip marker
+                }
+
+                const m = L.marker([c.latitude, c.longitude])
+                    .addTo(map)
+                    .bindPopup(`
+                        <b>${c.name}</b><br>
+                        ${c.phone || ''}<br>
+                        ${c.address || ''}
+                    `);
+
+                markers.push(m);
+                bounds.extend([c.latitude, c.longitude]);
+            });
+
+            if (markers.length) {
+                bounds.extend([depot.lat, depot.lng]);
+                map.fitBounds(bounds, { padding: [40, 40] });
+            }
+        }
+
+        function focusCustomer(lat, lng) {
+            map.setView([lat, lng], 16);
+        }
+
+        function fitMapBounds() {
+            if (markers.length) {
+                map.fitBounds(bounds, { padding: [40, 40] });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadCustomers);
+    </script>
+{% endblock %}

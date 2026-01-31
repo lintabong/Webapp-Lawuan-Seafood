@@ -1,0 +1,93 @@
+
+
+{% extends "base.html" %}
+{% block title %}Add Cashflow{% endblock %}
+{% block page_title %}Add Cashflow{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card p-3">
+            <form id="cashflowForm">
+
+                <label class="form-label">Category</label>
+                <select id="category" class="form-select" required>
+                    {% for c in categories %}
+                        <option value="{{ c.id }}">{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+
+                <label class="form-label mt-2">Description</label>
+                <input class="form-control" id="description">
+
+                <hr>
+
+                <label class="form-label">Type</label>
+                <select id="type" class="form-select">
+                    <option value="general">General Expense</option>
+                    <option value="product">Product Purchase</option>
+                </select>
+
+                <div id="productFields" class="d-none">
+                    <label class="form-label mt-2">Product</label>
+                    <select id="product" class="form-select">
+                        {% for p in products %}
+                        <option value="{{ p.id }}">
+                            {{ p.name }} (stock: {{ p.stock }} {{ p.unit }})
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    <label class="form-label mt-2">Quantity</label>
+                    <input type="number" step="0.01" id="quantity" class="form-control">
+
+                    <label class="form-label mt-2">Buy Price / unit</label>
+                    <input type="number" step="0.01" id="buy_price" class="form-control">
+                </div>
+
+                <label class="form-label mt-2">Total Amount</label>
+                <input type="number" step="0.01" id="amount" class="form-control" required>
+
+                <button class="btn btn-primary mt-3 w-100">Save</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+    document.getElementById('type').addEventListener('change', e => {
+        document.getElementById('productFields')
+            .classList.toggle('d-none', e.target.value !== 'product');
+    });
+
+    document.getElementById('cashflowForm').addEventListener('submit', async e => {
+        e.preventDefault();
+
+        const payload = {
+            category_id: document.getElementById('category').value,
+            description: document.getElementById('description').value,
+            amount: document.getElementById('amount').value
+        };
+
+        if (document.getElementById('type').value === 'product') {
+            payload.product_id = document.getElementById('product').value;
+            payload.quantity = document.getElementById('quantity').value;
+            payload.buy_price = document.getElementById('buy_price').value;
+        }
+
+        const res = await fetch('/api/cashflow', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            alert('Cashflow saved');
+            location.reload();
+        }
+    });
+    </script>
+
+{% endblock %}

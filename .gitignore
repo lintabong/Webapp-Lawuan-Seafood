@@ -4,5 +4,9 @@ __pycache__
 .vscode
 bufftools
 
+_app
+logs
+
 *.txt
+products_export.xlsx
 .env
