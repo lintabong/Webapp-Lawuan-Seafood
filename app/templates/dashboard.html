@@ -2,38 +2,37 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card p-3">
-            <h6 class="text-muted">Customers</h6>
-            <h3 class="fw-bold hidden" id="totalCustomers">-</h3>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 d-flex">
+            <div class="card p-3 h-100 w-100">
+                <h6 class="text-muted">Customers</h6>
+                <h3 class="fw-bold hidden" id="totalCustomers">-</h3>
+            </div>
+        </div>
+
+        <div class="col-md-3 d-flex">
+            <div class="card p-3 h-100 w-100">
+                <h6 class="text-muted">Current Cash</h6>
+                <h3 class="fw-bold hidden" id="curentCash">-</h3>
+            </div>
+        </div>
+
+        <div class="col-md-3 d-flex">
+            <div class="card p-3 h-100 w-100">
+                <h6 class="text-muted">Income (This Month)</h6>
+                <h3 class="fw-bold text-success hidden" id="incomeThisMonth">Rp 0</h3>
+                <small class="text-muted" id="incomeVsLastMonth"></small>
+            </div>
+        </div>
+
+        <div class="col-md-3 d-flex">
+            <div class="card p-3 h-100 w-100">
+                <h6 class="text-muted">Income (Last 30 Days)</h6>
+                <h3 class="fw-bold text-success hidden" id="incomeLast30Days">Rp 0</h3>
+                <small class="text-muted" id="incomeVs30to60"></small>
+            </div>
         </div>
     </div>
-
-    <div class="col-md-3">
-        <div class="card p-3">
-            <h6 class="text-muted">Products</h6>
-            <h3 class="fw-bold hidden" id="totalProducts">-</h3>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card p-3">
-            <h6 class="text-muted">Income (This Month)</h6>
-            <h3 class="fw-bold text-success hidden" id="incomeThisMonth">Rp 0</h3>
-            <small class="text-muted" id="incomeVsLastMonth"></small>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card p-3">
-            <h6 class="text-muted">Income (Last 30 Days)</h6>
-            <h3 class="fw-bold text-success hidden" id="incomeLast30Days">Rp 0</h3>
-            <small class="text-muted" id="incomeVs30to60"></small>
-        </div>
-    </div>
-</div>
-
 
     <!-- CHART -->
     <div class="card p-4">
@@ -116,8 +115,8 @@
                 // Totals
                 document.getElementById('totalCustomers').textContent = data.total_customers;
                 toggleLoading('totalCustomers', false);
-                document.getElementById('totalProducts').textContent = data.total_products;
-                toggleLoading('totalProducts', false);
+                document.getElementById('curentCash').textContent = rupiah(data.current_cash);
+                toggleLoading('curentCash', false);
 
                 // Income values
                 const income = data.income || {};

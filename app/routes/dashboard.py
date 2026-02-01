@@ -29,20 +29,29 @@ def api_dashboard_kpi():
             .count
         )
 
-        total_products = (
-            supabase.table('products')
-            .select('id', count='exact')
-            .eq('is_active', True)
+        # total_products = (
+        #     supabase.table('products')
+        #     .select('id', count='exact')
+        #     .eq('is_active', True)
+        #     .execute()
+        #     .count
+        # )
+        response = (
+            supabase
+            .table('cash_accounts')
+            .select('balance')
             .execute()
-            .count
         )
+
+        current_cash = sum(row['balance'] for row in response.data)
 
         income_result = supabase.rpc('get_income_comparison').execute()
         income = income_result.data[0] if income_result.data else {}
 
         return jsonify({
             'total_customers': total_customers,
-            'total_products': total_products,
+            # 'total_products': total_products,
+            'current_cash': str(current_cash),
 
             'income': {
                 'this_month': income.get('this_month', 0),

@@ -9,3 +9,6 @@
 1.3.0
 - Create cashflow transaction
 - Create new table
+
+1.4.0
+- Dashboard: change from total product to current cash
