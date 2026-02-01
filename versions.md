@@ -12,3 +12,8 @@
 
 1.4.0
 - Dashboard: change from total product to current cash
+
+1.5.0
+- Edit orders.html layout
+- New logic on cashflow
+- Change customer route to `customer-map`

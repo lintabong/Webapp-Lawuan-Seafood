@@ -9,7 +9,7 @@ from app.helpers.auth import login_required
 
 customers_bp = Blueprint('customers', __name__)
 
-@customers_bp.route('/customers')
+@customers_bp.route('/customer-map')
 @login_required
 def customers_page():
     return render_template('customers_map.html')
