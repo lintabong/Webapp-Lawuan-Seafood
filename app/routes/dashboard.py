@@ -22,22 +22,34 @@ def api_dashboard_kpi():
     try:
         supabase.postgrest.auth(session['access_token'])
 
-        total_customers = supabase.table('customers') \
-            .select('id', count='exact') \
-            .execute().count
+        total_customers = (
+            supabase.table('customers')
+            .select('id', count='exact')
+            .execute()
+            .count
+        )
 
-        total_products = supabase.table('products') \
-            .select('id', count='exact') \
-            .eq('is_active', True) \
-            .execute().count
+        total_products = (
+            supabase.table('products')
+            .select('id', count='exact')
+            .eq('is_active', True)
+            .execute()
+            .count
+        )
 
-        income_result = supabase.rpc('get_monthly_income').execute()
-        income_month = income_result.data if income_result.data else 0
+        income_result = supabase.rpc('get_income_comparison').execute()
+        income = income_result.data[0] if income_result.data else {}
 
         return jsonify({
             'total_customers': total_customers,
             'total_products': total_products,
-            'income_month': income_month
+
+            'income': {
+                'this_month': income.get('this_month', 0),
+                'last_month': income.get('last_month', 0),
+                'last_30_days': income.get('last_30_days', 0),
+                'days_30_60': income.get('days_30_60', 0)
+            }
         })
 
     except Exception as e:

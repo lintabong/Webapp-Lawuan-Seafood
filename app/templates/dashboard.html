@@ -1,37 +1,39 @@
 {% extends "base.html" %}
 {% block page_title %}Dashboard{% endblock %}
 
-
 {% block content %}
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card p-3">
-                <h6 class="text-muted">Customers</h6>
-                <h3 class="fw-bold hidden" id="totalCustomers">-</h3>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card p-3">
-                <h6 class="text-muted">Products</h6>
-                <h3 class="fw-bold hidden" id="totalProducts">-</h3>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card p-3">
-                <h6 class="text-muted">Income This Month</h6>
-                <h3 class="fw-bold text-success hidden" id="incomeMonth">Rp 0</h3>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card p-3">
-                <h6 class="text-muted">Income (Last 30 Days)</h6>
-                <h3 class="fw-bold text-success hidden" id="incomeMonth">Rp 0</h3>
-            </div>
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h6 class="text-muted">Customers</h6>
+            <h3 class="fw-bold hidden" id="totalCustomers">-</h3>
         </div>
     </div>
+
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h6 class="text-muted">Products</h6>
+            <h3 class="fw-bold hidden" id="totalProducts">-</h3>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h6 class="text-muted">Income (This Month)</h6>
+            <h3 class="fw-bold text-success hidden" id="incomeThisMonth">Rp 0</h3>
+            <small class="text-muted" id="incomeVsLastMonth"></small>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h6 class="text-muted">Income (Last 30 Days)</h6>
+            <h3 class="fw-bold text-success hidden" id="incomeLast30Days">Rp 0</h3>
+            <small class="text-muted" id="incomeVs30to60"></small>
+        </div>
+    </div>
+</div>
+
 
     <!-- CHART -->
     <div class="card p-4">
@@ -95,30 +97,56 @@
 
         // Load KPI data
         async function loadKPIData() {
-        try {
-            const response = await fetch('/api/dashboard/kpi');
-            const data = await response.json();
-            
-            // Update customers
-            document.getElementById('totalCustomers').textContent = data.total_customers || 0;
-            toggleLoading('totalCustomers', false);
-            
-            // Update products
-            document.getElementById('totalProducts').textContent = data.total_products || 0;
-            toggleLoading('totalProducts', false);
-            
-            // Update income
-            document.getElementById('incomeMonth').textContent = 'Rp ' + formatRupiah(data.income_month || 0);
-            toggleLoading('incomeMonth', false);
-            
-        } catch (error) {
-            console.error('Error loading KPI data:', error);
-            // Show error state
-            ['totalCustomers', 'totalProducts', 'incomeMonth'].forEach(id => {
-            document.getElementById(id).textContent = 'Error';
-            toggleLoading(id, false);
-            });
-        }
+            try {
+                const res = await fetch('/api/dashboard/kpi');
+                const data = await res.json();
+                console.log(data);
+
+                // Helpers
+                const rupiah = n =>
+                    'Rp ' + Number(n || 0).toLocaleString('id-ID');
+
+                const growthText = (current, previous) => {
+                    if (!previous || previous === 0) return '—';
+                    const diff = ((current - previous) / previous) * 100;
+                    const sign = diff >= 0 ? '+' : '';
+                    return `${sign}${diff.toFixed(1)}% vs previous`;
+                };
+
+                // Totals
+                document.getElementById('totalCustomers').textContent = data.total_customers;
+                toggleLoading('totalCustomers', false);
+                document.getElementById('totalProducts').textContent = data.total_products;
+                toggleLoading('totalProducts', false);
+
+                // Income values
+                const income = data.income || {};
+
+                document.getElementById('incomeThisMonth').textContent =
+                    rupiah(income.this_month);
+                    toggleLoading('incomeThisMonth', false);
+
+                document.getElementById('incomeLast30Days').textContent =
+                    rupiah(income.last_30_days);
+                    toggleLoading('incomeLast30Days', false);
+
+                // Comparisons
+                document.getElementById('incomeVsLastMonth').textContent =
+                    growthText(income.this_month, income.last_month);
+                toggleLoading('incomeVsLastMonth', false);
+
+                document.getElementById('incomeVs30to60').textContent =
+                    growthText(income.last_30_days, income.days_30_60);
+                toggleLoading('incomeVs30to60', false);
+                
+            } catch (error) {
+                console.error('Error loading KPI data:', error);
+                // Show error state
+                ['totalCustomers', 'totalProducts', 'incomeMonth'].forEach(id => {
+                document.getElementById(id).textContent = 'Error';
+                toggleLoading(id, false);
+                });
+            }
         }
 
         // Render chart
