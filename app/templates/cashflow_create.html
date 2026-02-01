@@ -20,27 +20,15 @@
                     <hr>
 
                     <div id="productFields" class="d-none">
-                        <label class="form-label">Product</label>
-                        <select id="product" class="form-select">
-                            <option value="">-- Select Product --</option>
-                            {% for p in products %}
-                            <option value="{{ p.id }}" 
-                                    data-buy-price="{{ p.buy_price }}"
-                                    data-unit="{{ p.unit }}">
-                                {{ p.name }} (stock: {{ p.stock }} {{ p.unit }})
-                            </option>
-                            {% endfor %}
-                        </select>
-
-                        <label class="form-label mt-2">Quantity</label>
-                        <input type="number" step="0.01" id="quantity" class="form-control">
-
-                        <label class="form-label mt-2">Buy Price / unit</label>
-                        <input type="number" step="0.01" id="buy_price" class="form-control">
+                        <div id="productList"></div>
+                        
+                        <button type="button" class="btn btn-sm btn-secondary mt-2" id="addProductBtn">
+                            + Add Product
+                        </button>
                     </div>
 
                     <label class="form-label mt-2">Total Amount</label>
-                    <input type="number" step="0.01" id="amount" class="form-control" required>
+                    <input type="number" step="0.01" id="amount" class="form-control" required readonly>
 
                     <button class="btn btn-primary mt-3 w-100">Save</button>
                 </form>
@@ -51,6 +39,10 @@
 
 {% block extra_js %}
     <script>
+    const products = {{ products|tojson }};
+    let productCounter = 0;
+    let selectedProducts = [];
+
     // 1. Show/hide product fields based on category name
     document.getElementById('category').addEventListener('change', e => {
         const selectedOption = e.target.options[e.target.selectedIndex];
@@ -61,45 +53,110 @@
         
         // Reset product fields when switching away from product purchase
         if (!isProductPurchase) {
-            document.getElementById('product').value = '';
-            document.getElementById('quantity').value = '';
-            document.getElementById('buy_price').value = '';
-        }
-    });
-
-    // 2. Auto-fill quantity and buy price when product is selected
-    document.getElementById('product').addEventListener('change', e => {
-        const selectedOption = e.target.options[e.target.selectedIndex];
-        
-        if (selectedOption.value) {
-            const buyPrice = selectedOption.dataset.buyPrice;
-            
-            // Set quantity to 1
-            document.getElementById('quantity').value = 1;
-            
-            // Set buy price from product data
-            document.getElementById('buy_price').value = buyPrice;
-            
-            // Calculate total amount
+            selectedProducts = [];
+            document.getElementById('productList').innerHTML = '';
             updateTotalAmount();
-        } else {
-            document.getElementById('quantity').value = '';
-            document.getElementById('buy_price').value = '';
-            document.getElementById('amount').value = '';
         }
     });
 
-    // 3. Auto-calculate total amount when quantity or buy price changes
+    // 2. Add product row
+    document.getElementById('addProductBtn').addEventListener('click', () => {
+        const id = productCounter++;
+        const row = document.createElement('div');
+        row.className = 'card mb-2 p-2';
+        row.id = `product-row-${id}`;
+        row.innerHTML = `
+            <div class="row align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small">Product</label>
+                    <select class="form-select form-select-sm product-select" data-id="${id}">
+                        <option value="">-- Select --</option>
+                        ${products.map(p => `
+                            <option value="${p.id}" 
+                                    data-buy-price="${p.buy_price}"
+                                    data-unit="${p.unit}">
+                                ${p.name} (${p.stock} ${p.unit})
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Quantity</label>
+                    <input type="number" step="0.01" class="form-control form-control-sm quantity-input" 
+                           data-id="${id}" value="1">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small">Buy Price</label>
+                    <input type="number" step="0.01" class="form-control form-control-sm price-input" 
+                           data-id="${id}">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-sm btn-danger w-100 remove-btn" data-id="${id}">
+                        Remove
+                    </button>
+                </div>
+            </div>
+            <div class="mt-1 small text-muted">
+                Subtotal: <strong class="subtotal" data-id="${id}">Rp 0</strong>
+            </div>
+        `;
+        
+        document.getElementById('productList').appendChild(row);
+        
+        // Attach event listeners
+        attachProductEvents(id);
+    });
+
+    function attachProductEvents(id) {
+        // Product selection
+        const selectEl = document.querySelector(`.product-select[data-id="${id}"]`);
+        selectEl.addEventListener('change', e => {
+            const option = e.target.options[e.target.selectedIndex];
+            if (option.value) {
+                document.querySelector(`.price-input[data-id="${id}"]`).value = option.dataset.buyPrice;
+                updateProductSubtotal(id);
+            }
+        });
+
+        // Quantity change
+        document.querySelector(`.quantity-input[data-id="${id}"]`).addEventListener('input', () => {
+            updateProductSubtotal(id);
+        });
+
+        // Price change
+        document.querySelector(`.price-input[data-id="${id}"]`).addEventListener('input', () => {
+            updateProductSubtotal(id);
+        });
+
+        // Remove button
+        document.querySelector(`.remove-btn[data-id="${id}"]`).addEventListener('click', () => {
+            document.getElementById(`product-row-${id}`).remove();
+            updateTotalAmount();
+        });
+    }
+
+    function updateProductSubtotal(id) {
+        const qty = parseFloat(document.querySelector(`.quantity-input[data-id="${id}"]`).value) || 0;
+        const price = parseFloat(document.querySelector(`.price-input[data-id="${id}"]`).value) || 0;
+        const subtotal = qty * price;
+        
+        document.querySelector(`.subtotal[data-id="${id}"]`).textContent = 
+            `Rp ${subtotal.toLocaleString('id-ID', {minimumFractionDigits: 2})}`;
+        
+        updateTotalAmount();
+    }
+
     function updateTotalAmount() {
-        const quantity = parseFloat(document.getElementById('quantity').value) || 0;
-        const buyPrice = parseFloat(document.getElementById('buy_price').value) || 0;
-        const total = quantity * buyPrice;
+        let total = 0;
+        document.querySelectorAll('.product-select').forEach(select => {
+            const id = select.dataset.id;
+            const qty = parseFloat(document.querySelector(`.quantity-input[data-id="${id}"]`).value) || 0;
+            const price = parseFloat(document.querySelector(`.price-input[data-id="${id}"]`).value) || 0;
+            total += qty * price;
+        });
         
         document.getElementById('amount').value = total.toFixed(2);
     }
-
-    document.getElementById('quantity').addEventListener('input', updateTotalAmount);
-    document.getElementById('buy_price').addEventListener('input', updateTotalAmount);
 
     // Form submission
     document.getElementById('cashflowForm').addEventListener('submit', async e => {
@@ -117,9 +174,26 @@
         };
 
         if (isProductPurchase) {
-            payload.product_id = document.getElementById('product').value;
-            payload.quantity = document.getElementById('quantity').value;
-            payload.buy_price = document.getElementById('buy_price').value;
+            const products = [];
+            document.querySelectorAll('.product-select').forEach(select => {
+                const id = select.dataset.id;
+                const productId = select.value;
+                
+                if (productId) {
+                    products.push({
+                        product_id: productId,
+                        quantity: document.querySelector(`.quantity-input[data-id="${id}"]`).value,
+                        buy_price: document.querySelector(`.price-input[data-id="${id}"]`).value
+                    });
+                }
+            });
+            
+            if (products.length === 0) {
+                alert('Please add at least one product');
+                return;
+            }
+            
+            payload.products = products;
         }
 
         const res = await fetch('/api/cashflow', {
@@ -131,10 +205,12 @@
         if (res.ok) {
             alert('Cashflow saved');
             location.reload();
+        } else {
+            alert('Failed to save cashflow');
         }
     });
 
-    // Trigger category change on page load to show/hide fields if needed
+    // Trigger category change on page load
     document.getElementById('category').dispatchEvent(new Event('change'));
     </script>
 {% endblock %}
