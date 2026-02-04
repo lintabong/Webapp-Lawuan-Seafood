@@ -17,3 +17,7 @@
 - Edit orders.html layout
 - New logic on cashflow
 - Change customer route to `customer-map`
+
+1.6.0
+- Edit dashboard: add KPI
+- Edit cashflow display
