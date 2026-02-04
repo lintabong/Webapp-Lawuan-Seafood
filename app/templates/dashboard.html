@@ -14,6 +14,7 @@
             <div class="card p-3 h-100 w-100">
                 <h6 class="text-muted">Current Cash</h6>
                 <h3 class="fw-bold hidden" id="curentCash">-</h3>
+                <small class="text-muted" id="pendingValue"></small>
             </div>
         </div>
 
@@ -99,7 +100,6 @@
             try {
                 const res = await fetch('/api/dashboard/kpi');
                 const data = await res.json();
-                console.log(data);
 
                 // Helpers
                 const rupiah = n =>
@@ -118,7 +118,10 @@
                 document.getElementById('curentCash').textContent = rupiah(data.current_cash);
                 toggleLoading('curentCash', false);
 
-                // Income values
+                document.getElementById('pendingValue').textContent =
+                    rupiah(data.pending_total_amount);
+                toggleLoading('pendingValue', false);
+
                 const income = data.income || {};
 
                 document.getElementById('incomeThisMonth').textContent =
@@ -129,7 +132,6 @@
                     rupiah(income.last_30_days);
                     toggleLoading('incomeLast30Days', false);
 
-                // Comparisons
                 document.getElementById('incomeVsLastMonth').textContent =
                     growthText(income.this_month, income.last_month);
                 toggleLoading('incomeVsLastMonth', false);
