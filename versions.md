@@ -21,3 +21,7 @@
 1.6.0
 - Edit dashboard: add KPI
 - Edit cashflow display
+
+1.7.0
+- Add new folder: models to save supabase model
+- Create models/customer.py and models/product.py
