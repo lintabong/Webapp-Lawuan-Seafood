@@ -50,9 +50,11 @@ def api_delivery_orders():
                     longitude
                 ),
                 order_items(
+                    id,
                     quantity,
                     sell_price,
-                    products(name, unit)
+                    products(name, unit),
+                    is_prepared
                 )''')
             .eq('delivery_type', 'delivery')
             .in_('status', ['pending', 'paid', 'delivered']) 
@@ -82,10 +84,12 @@ def api_delivery_orders():
                 'total_amount': float(o['total_amount'] or 0),
                 'products': [
                     {
+                        'item_id': item['id'],
                         'name': item['products']['name'],
                         'unit': item['products']['unit'],
                         'quantity': float(item['quantity']),
                         'sell_price': float(item['sell_price']),
+                        'is_prepared': item['is_prepared']
                     }
                     for item in o['order_items']
                 ]

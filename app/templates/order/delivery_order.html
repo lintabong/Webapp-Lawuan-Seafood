@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Delivery Orders{% endblock %}
+{% block page_title %}Delivery Orders{% endblock %}
+
+{% block content %}
+    <style>
+        :root {
+            --page-offset: 160px; /* header + paddings */
+        }
+
+        .vh-fit {
+            height: calc(100vh - var(--page-offset));
+        }
+
+        .order-scroll {
+            overflow-y: auto;
+        }
+
+        #map {
+            height: 100%;
+            min-height: 300px;
+        }
+
+        .customer-label {
+            background: white;
+            border: 1px solid #0d6efd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #0d6efd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .order-item-checkbox {
+            cursor: pointer;
+        }
+
+        .order-item-checkbox:disabled {
+            cursor: not-allowed;
+        }
+
+        .order-card {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .order-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/js/leaflet.js"></script>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card p-3 mb-3">
+                <label class="form-label fw-bold mb-2">Delivery Date</label>
+                <input type="date" id="routeDate" class="form-control">
+            </div>
+
+            <div class="card" style="max-height: calc(100vh - 220px); overflow-y: auto;">
+                <div class="card-body p-2">
+                    <div id="orderList">
+                        <div class="text-center py-4">
+                            <div class="spinner-small d-inline-block"></div>
+                            <p class="text-muted mt-2 mb-0">Loading orders...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-0 position-relative">
+                    <div class="position-absolute top-0 end-0 m-3" style="z-index: 1000;">
+                        <button class="btn btn-primary btn-sm shadow" onclick="fitMapBounds()">
+                            <i class="bi bi-fullscreen"></i> Fit All
+                        </button>
+                    </div>
+
+                    <div id="map" style="height: calc(100vh - 180px); border-radius: 0.375rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const depot = { lat: -7.586659740785085, lng: 110.94502385669738 };
+        const map = L.map('map').setView([depot.lat, depot.lng], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        const depotIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/69/69524.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        let markers = [];
+        let bounds = L.latLngBounds([[depot.lat, depot.lng]]);
+
+        async function updateItemPrepared(itemId, isPrepared, checkboxElement) {
+            const originalValue = checkboxElement.checked;
+
+            try {
+                checkboxElement.disabled = true;
+                console.log(itemId)
+                const response = await fetch(`/api/order-items/${itemId}/prepared`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ is_prepared: isPrepared })
+                });
+
+                if (!response.ok) throw new Error('Failed to update item status');
+
+                showToast('Item status updated', 'success');
+
+            } catch (error) {
+                console.error('Error updating item:', error);
+                checkboxElement.checked = originalValue;
+                console.log(error);
+                showToast('Failed to update item status', 'error');
+            } finally {
+                checkboxElement.disabled = false;
+            }
+        }
+
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed top-0 end-0 m-3`;
+            toast.style.zIndex = '9999';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        async function loadOrders() {
+            const date = document.getElementById('routeDate').value;
+
+            const depotMarker = L.marker([depot.lat, depot.lng], { icon: depotIcon })
+                .addTo(map)
+                .bindPopup('<b>Depot</b>');
+
+            const res = await fetch(`/api/delivery-orders?date=${date}`);
+            const data = await res.json();
+
+            if (!Array.isArray(data)) {
+                document.getElementById('orderList').innerHTML =
+                    `<div class="alert alert-danger">${data.error}</div>`;
+                return;
+            }
+
+            renderOrders(data);
+            renderMarkers(data);
+        }
+
+        function statusBadge(status) {
+            switch (status) {
+                case 'cancelled': return 'bg-danger';
+                case 'delivered': return 'bg-success';
+                case 'paid': return 'bg-warning text-dark';
+                default: return 'bg-primary';
+            }
+        }
+
+        function statusBorder(status) {
+            switch (status) {
+                case 'cancelled': return 'border-danger';
+                case 'delivered': return 'border-success';
+                case 'paid': return 'border-warning';
+                default: return 'border-primary';
+            }
+        }
+
+        function focusOrderOnMap(lat, lng, event) {
+            if (event.target.type === 'checkbox' || event.target.closest('.btn')) {
+                return;
+            }
+            map.setView([lat, lng], 16);
+        }
+
+        function renderOrders(orders) {
+            const el = document.getElementById('orderList');
+
+            if (!orders.length) {
+                el.innerHTML = `<p class="text-muted text-center">No delivery orders</p>`;
+                return;
+            }
+
+            el.innerHTML = orders.map((o, i) => {
+                const items = o.products.map(p =>  {
+                    console.log(p);
+                return `
+                    <li class="d-flex align-items-center gap-2 mb-1">
+                        <input type="checkbox" 
+                               class="form-check-input order-item-checkbox m-0" 
+                               ${p.is_prepared ? 'checked' : ''}
+                               onchange="updateItemPrepared(${p.item_id}, this.checked, this); event.stopPropagation();"
+                               ${o.status === 'cancelled' || o.status === 'delivered' ? 'disabled' : ''}>
+                        <span>${p.name} (${p.quantity} ${p.unit})</span>
+                    </li>
+                `}).join('');
+
+                const grandTotal = o.total_amount + o.delivery_price;
+
+                return `
+                <div class="card mb-2 border-start border-4 ${statusBorder(o.status)} order-card"
+                     id="order-card-${o.order_id}"
+                     onclick="focusOrderOnMap(${o.latitude}, ${o.longitude}, event)">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div>
+                                <b>${i + 1}. ${o.customer_name}</b>
+                                <br>
+                                <small class="text-muted">Order #${o.order_id}</small>
+                            </div>
+                            <div class="d-flex gap-1 align-items-center">
+                                ${o.status === 'pending' ? `
+                                    <a href="/orders/edit?id=${o.order_id}" 
+                                       class="btn btn-warning btn-sm" 
+                                       title="Edit Order"
+                                       onclick="event.stopPropagation();">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                ` : ''}
+                                <span class="badge ${statusBadge(o.status)}">${o.status}</span>
+                            </div>
+                        </div>
+
+                        <ul class="mt-2 mb-2 ps-3 small list-unstyled">
+                            ${items}
+                        </ul>
+
+                        <div class="small border-top pt-2">
+                            Delivery: <b>Rp ${o.delivery_price.toLocaleString('id-ID')}</b><br>
+                            Total: <b>Rp ${grandTotal.toLocaleString('id-ID')}</b>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function renderMarkers(orders) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            bounds = L.latLngBounds([[depot.lat, depot.lng]]);
+
+            orders.forEach((o, i) => {
+                const m = L.marker([o.latitude, o.longitude])
+                    .addTo(map)
+                    .bindPopup(`
+                        <b>${o.customer_name}</b><br>
+                        Order #${o.order_id}<br>
+                    `);
+
+                m.on('click', function() {
+                    const card = document.getElementById(`order-card-${o.order_id}`);
+                    if (card) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Optional: highlight the card briefly
+                        card.classList.add('bg-light');
+                        setTimeout(() => card.classList.remove('bg-light'), 1000);
+                    }
+                });
+
+                markers.push(m);
+                bounds.extend([o.latitude, o.longitude]);
+            });
+
+            // include depot marker in bounds
+            bounds.extend([depot.lat, depot.lng]);
+
+            map.fitBounds(bounds, { padding: [40, 40] });
+        }
+
+        function fitMapBounds() {
+            if (bounds) {
+                map.fitBounds(bounds, { padding: [40, 40] });
+            }
+        }
+
+        function focusOrder(lat, lng) {
+            map.setView([lat, lng], 16);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById("routeDate").value =
+                new Date().toISOString().split("T")[0];
+            loadOrders();
+            document.getElementById("routeDate").addEventListener("change", loadOrders);
+        });
+    </script>
+{% endblock %}

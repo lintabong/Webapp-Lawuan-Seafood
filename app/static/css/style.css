@@ -54,3 +54,64 @@ body {
     .hidden {
       display: none;
     }
+
+    #map {
+            height: 95%;
+            min-height: 470px;
+        }
+        
+        .customer-list-container {
+            height: 100%;
+            display: flex;
+            max-height: 470px;
+            flex-direction: column;
+        }
+        
+        .customer-list-header {
+            flex-shrink: 0;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+        }
+        
+        /* HEADER stays fixed */
+        .customer-list-header {
+            flex-shrink: 0;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+            background-color: #f8f9fa;
+        }
+
+        /* BODY scrolls */
+        .customer-list-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        /* UI effects (unchanged) */
+        .customer-card {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .customer-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+
+        .search-box input {
+            padding-left: 38px;
+        }

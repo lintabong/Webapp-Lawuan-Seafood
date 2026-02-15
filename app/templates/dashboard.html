@@ -38,29 +38,29 @@
     <!-- CHART -->
     <div class="card p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold mb-0">Omzet & Profit</h5>
-        <div id="chartLoadingIndicator" class="hidden">
-            <span class="spinner-small"></span>
-            <small class="text-muted ms-2">Loading...</small>
-        </div>
+            <h5 class="fw-bold mb-0">Omzet & Profit</h5>
+            <div id="chartLoadingIndicator" class="hidden">
+                <span class="spinner-small"></span>
+                <small class="text-muted ms-2">Loading...</small>
+            </div>
         </div>
         <div class="row mb-3">
-        <div class="col-md-4">
-            <label class="form-label">Start Date</label>
-            <input type="date" id="startDate" class="form-control">
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">End Date</label>
-            <input type="date" id="endDate" class="form-control">
-        </div>
-        <div class="col-md-4 d-flex align-items-end">
-            <button class="btn btn-primary w-100" onclick="updateChart()" id="applyBtn">
-            Apply
-            </button>
-        </div>
+            <div class="col-md-4">
+                <label class="form-label">Start Date</label>
+                <input type="date" id="startDate" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">End Date</label>
+                <input type="date" id="endDate" class="form-control">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="updateChart()" id="applyBtn">
+                Apply
+                </button>
+            </div>
         </div>
         <div id="chartSkeletonContainer">
-        <div class="skeleton" style="height: 300px; width: 100%;"></div>
+            <div class="skeleton" style="height: 300px; width: 100%;"></div>
         </div>
         <canvas id="salesChart" class="hidden"></canvas>
     </div>
@@ -84,21 +84,21 @@
         }
 
         function toggleLoading(elementId, show) {
-        const loadingEl = document.getElementById(elementId + 'Loading');
-        const contentEl = document.getElementById(elementId);
-        
-        if (loadingEl) {
-            loadingEl.classList.toggle('hidden', !show);
-        }
-        if (contentEl) {
-            contentEl.classList.toggle('hidden', show);
-        }
+            const loadingEl = document.getElementById(elementId + 'Loading');
+            const contentEl = document.getElementById(elementId);
+            
+            if (loadingEl) {
+                loadingEl.classList.toggle('hidden', !show);
+            }
+            if (contentEl) {
+                contentEl.classList.toggle('hidden', show);
+            }
         }
 
         // Load KPI data
         async function loadKPIData() {
             try {
-                const res = await fetch('/api/dashboard/kpi');
+                const res = await fetch('/api/kpi');
                 const data = await res.json();
 
                 // Helpers
@@ -142,7 +142,7 @@
                 
             } catch (error) {
                 console.error('Error loading KPI data:', error);
-                // Show error state
+
                 ['totalCustomers', 'totalProducts', 'incomeMonth'].forEach(id => {
                 document.getElementById(id).textContent = 'Error';
                 toggleLoading(id, false);
@@ -150,7 +150,6 @@
             }
         }
 
-        // Render chart
         function renderChart(data) {
             const labels = data.map(d => d.order_date);
             const omzet = data.map(d => d.total_revenue || 0);
@@ -158,13 +157,11 @@
             const delivery = data.map(d => d.delivery_earnings || 0);
 
             const ctx = document.getElementById('salesChart');
-            
-            // Destroy existing chart if it exists
+
             if (chartInstance) {
                 chartInstance.destroy();
             }
 
-            // Show canvas, hide skeleton
             document.getElementById('chartSkeletonContainer').classList.add('hidden');
             ctx.classList.remove('hidden');
 
@@ -174,109 +171,104 @@
                 labels,
                 datasets: [
                     { 
-                    label: 'Omzet', 
-                    data: omzet,
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    tension: 0.4
+                        label: 'Omzet', 
+                        data: omzet,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        tension: 0.4
                     },
                     { 
-                    label: 'Profit', 
-                    data: profit,
-                    borderColor: '#198754',
-                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
-                    tension: 0.4
+                        label: 'Profit', 
+                        data: profit,
+                        borderColor: '#198754',
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        tension: 0.4
                     },
                     { 
-                    label: 'Delivery', 
-                    data: delivery,
-                    borderColor: '#ffc107',
-                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
-                    tension: 0.4
+                        label: 'Delivery', 
+                        data: delivery,
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.4
                     }
                 ]
                 },
                 options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                aspectRatio: 2.5,
-                plugins: {
-                    legend: {
-                    position: 'top',
-                    }
-                },
-                scales: {
-                    y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                        return 'Rp ' + formatRupiah(value);
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 2.5,
+                    plugins: {
+                        legend: {
+                        position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                            return 'Rp ' + formatRupiah(value);
+                            }
+                        }
                         }
                     }
-                    }
-                }
                 }
             });
         }
 
-        // Load chart data
         async function loadChartData(startDate, endDate) {
-        try {
-            document.getElementById('chartLoadingIndicator').classList.remove('hidden');
-            
-            const response = await fetch(`/api/dashboard/chart?start_date=${startDate}&end_date=${endDate}`);
-            const data = await response.json();
-            
-            renderChart(data);
-            
-        } catch (error) {
-            console.error('Error loading chart data:', error);
-            // Show error in chart area
-            document.getElementById('chartSkeletonContainer').innerHTML = 
-            '<div class="alert alert-danger">Failed to load chart data</div>';
-        } finally {
-            document.getElementById('chartLoadingIndicator').classList.add('hidden');
-        }
+            try {
+                document.getElementById('chartLoadingIndicator').classList.remove('hidden');
+
+                const response = await fetch(`/api/daily_order_summary?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+
+                renderChart(data);
+
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+                document.getElementById('chartSkeletonContainer').innerHTML = 
+                '<div class="alert alert-danger">Failed to load chart data</div>';
+            } finally {
+                document.getElementById('chartLoadingIndicator').classList.add('hidden');
+            }
         }
 
-        // Update chart with date filter
         async function updateChart() {
-        const startDate = document.getElementById('startDate').value;
-        const endDate = document.getElementById('endDate').value;
-        
-        if (!startDate || !endDate) {
-            alert('Please select both start and end dates');
-            return;
-        }
-        
-        if (new Date(startDate) > new Date(endDate)) {
-            alert('Start date must be before end date');
-            return;
-        }
-        
-        const btn = document.getElementById('applyBtn');
-        const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-small"></span> Loading...';
-        
-        try {
-            await loadChartData(startDate, endDate);
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalText;
-        }
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date must be before end date');
+                return;
+            }
+
+            const btn = document.getElementById('applyBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-small"></span> Loading...';
+            
+            try {
+                await loadChartData(startDate, endDate);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         }
 
-        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-        initializeDates();
-        
-        // Load data independently
-        loadKPIData();
-        
-        const startDate = document.getElementById('startDate').value;
-        const endDate = document.getElementById('endDate').value;
-        loadChartData(startDate, endDate);
+            initializeDates();
+
+            loadKPIData();
+
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            loadChartData(startDate, endDate);
         });
     </script>
 {% endblock %}

@@ -25,3 +25,6 @@
 1.7.0
 - Add new folder: models to save supabase model
 - Create models/customer.py and models/product.py
+
+1.8.0
+- Major edit on foldering

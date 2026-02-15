@@ -4,30 +4,35 @@
 {% block page_title %}Customers{% endblock %}
 
 {% block content %}
-    <style>
-        #map {
-            height: calc(100vh - 180px);
-            min-height: 300px;
-        }
-    </style>
-
     <div class="row g-3">
-        <!-- LEFT: Customer List -->
-        <div class="col-md-4">
-            <div class="card" style="max-height: calc(100vh - 180px); overflow-y: auto;">
-                <div class="card-body p-2">
-                    <div id="customerList">
-                        <div class="text-center py-4">
-                            <div class="spinner-border spinner-border-sm"></div>
-                            <p class="text-muted mt-2 mb-0">Loading customers...</p>
-                        </div>
+        <div class="col-lg-4 col-md-5">
+            <div class="card customer-list-container">
+                <div class="customer-list-header">
+                    <a href="{{ url_for('web.customer.add_customer_page') }}" class="btn btn-primary w-100 mb-3">
+                        <i class="bi bi-plus-circle"></i> Add Customer
+                    </a>
+                    
+                    <div class="search-box">
+                        <i class="bi bi-search search-icon"></i>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="searchInput" 
+                            placeholder="Search customers..."
+                            onkeyup="searchCustomers()">
+                    </div>
+                </div>
+
+                <div class="customer-list-body" id="customerList">
+                    <div class="text-center py-4">
+                        <div class="spinner-border spinner-border-sm"></div>
+                        <p class="text-muted mt-2 mb-0">Loading customers...</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT: MAP -->
-        <div class="col-md-8">
+        <div class="col-lg-8 col-md-7">
             <div class="card">
                 <div class="card-body p-0 position-relative">
                     <div class="position-absolute top-0 end-0 m-3" style="z-index: 1000;">
@@ -56,10 +61,6 @@
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // const depotMarker = L.marker([depot.lat, depot.lng])
-        //     .addTo(map)
-        //     .bindPopup(`<b>${depot.name}</b>`);
-
         var depotIcon = L.icon({
             iconUrl:  "{{ url_for('static', filename='icons/stockroom.png') }}",
             iconSize: [32, 32],
@@ -86,6 +87,7 @@
 
         let markers = [];
         let bounds = L.latLngBounds([[depot.lat, depot.lng]]);
+        let allCustomers = [];
 
         async function loadCustomers() {
             const res = await fetch('/api/customers');
@@ -97,6 +99,7 @@
                 return;
             }
 
+            allCustomers = data;
             renderCustomers(data);
             renderMarkers(data);
         }
@@ -105,7 +108,7 @@
             const el = document.getElementById('customerList');
 
             if (!customers.length) {
-                el.innerHTML = `<p class="text-muted text-center">No customers found</p>`;
+                el.innerHTML = `<p class="text-muted text-center py-4">No customers found</p>`;
                 return;
             }
 
@@ -113,29 +116,37 @@
                 const hasLocation = c.latitude !== null && c.longitude !== null;
 
                 return `
-                <div class="card mb-2 ${hasLocation ? '' : 'border-warning'}"
-                    ${hasLocation
-                        ? `onclick="focusCustomer(${c.latitude}, ${c.longitude})"`
-                        : ''}>
-
+                <div class="card mb-2 customer-card ${hasLocation ? '' : 'border-warning'}">
                     <div class="card-body p-2">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <b>${i + 1}. ${c.name}</b>
-
-                            ${!hasLocation
-                                ? `<span class="badge bg-warning text-dark">No Location</span>`
-                                : ''}
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <b onclick="focusCustomer(${c.latitude}, ${c.longitude})" 
+                               style="cursor: pointer; flex: 1;">
+                                ${i + 1}. ${c.name}
+                            </b>
+                            
+                            <div class="customer-actions">
+                                <a href="/customer/edit/${c.id}" 
+                                   class="btn btn-sm btn-outline-primary"
+                                   onclick="event.stopPropagation()">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                ${!hasLocation
+                                    ? `<span class="badge bg-warning text-dark ms-1">No Location</span>`
+                                    : ''}
+                            </div>
                         </div>
 
-                        <small class="text-muted">${c.phone || 'N/A'}</small><br>
-                        <small>${c.address || ''}</small>
+                        <div onclick="focusCustomer(${c.latitude}, ${c.longitude})" style="cursor: pointer;">
+                            <small class="text-muted">${c.phone || 'N/A'}</small><br>
+                            <small>${c.address || ''}</small>
 
-                        ${!hasLocation
-                            ? `<div class="text-danger small mt-1">
-                                <i class="bi bi-geo-alt"></i>
-                                Latitude / Longitude missing
-                            </div>`
-                            : ''}
+                            ${!hasLocation
+                                ? `<div class="text-danger small mt-1">
+                                    <i class="bi bi-geo-alt"></i>
+                                    Latitude / Longitude missing
+                                </div>`
+                                : ''}
+                        </div>
                     </div>
                 </div>
                 `;
@@ -150,15 +161,16 @@
 
             customers.forEach(c => {
                 if (c.latitude === null || c.longitude === null) {
-                    return; // ❗ safely skip marker
+                    return;
                 }
 
-                const m = L.marker([c.latitude, c.longitude])
+                const m = L.marker([c.latitude, c.longitude], {icon: customerIcon})
                     .addTo(map)
                     .bindPopup(`
                         <b>${c.name}</b><br>
                         ${c.phone || ''}<br>
-                        ${c.address || ''}
+                        ${c.address || ''}<br>
+                        
                     `);
 
                 markers.push(m);
@@ -172,13 +184,32 @@
         }
 
         function focusCustomer(lat, lng) {
-            map.setView([lat, lng], 16);
+            if (lat && lng) {
+                map.setView([lat, lng], 16);
+            }
         }
 
         function fitMapBounds() {
             if (markers.length) {
                 map.fitBounds(bounds, { padding: [40, 40] });
             }
+        }
+
+        function searchCustomers() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (!searchTerm) {
+                renderCustomers(allCustomers);
+                return;
+            }
+
+            const filtered = allCustomers.filter(c => 
+                c.name.toLowerCase().includes(searchTerm) ||
+                (c.phone && c.phone.toLowerCase().includes(searchTerm)) ||
+                (c.address && c.address.toLowerCase().includes(searchTerm))
+            );
+
+            renderCustomers(filtered);
         }
 
         document.addEventListener('DOMContentLoaded', loadCustomers);

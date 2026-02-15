@@ -20,13 +20,13 @@
             <h4 class="fw-bold mb-4">Lawuan</h4>
 
             <ul class="nav flex-column gap-1">
-                <li><a class="nav-link text-white" href="{{ url_for('dashboard.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-                <li><a class="nav-link" href="{{ url_for('orders.orders') }}"><i class="bi bi-receipt"></i> Orders</a></li>
-                <li><a class="nav-link" href="{{ url_for('orders.create_order') }}"><i class="bi bi-receipt"></i> Create Order</a></li>
+                <li><a class="nav-link text-white" href="{{ url_for('web.dashboard.dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                <li><a class="nav-link" href="{{ url_for('web.orders.orders') }}"><i class="bi bi-receipt"></i> Orders</a></li>
+                <li><a class="nav-link" href="{{ url_for('web.orders.create_order') }}"><i class="bi bi-receipt"></i> Create Order</a></li>
 
-                <li><a class="nav-link" href="{{ url_for('products.products') }}"><i class="bi bi-box"></i> Products</a></li>
+                <li><a class="nav-link" href="{{ url_for('web.products.products') }}"><i class="bi bi-box"></i> Products</a></li>
                 <li><a class="nav-link" href="{{ url_for('delivery.delivery_order') }}"><i class="bi bi-truck"></i> Delivery</a></li>
-                <li><a class="nav-link" href="{{ url_for('customers.customers_page') }}"><i class="bi bi-truck"></i> Customers</a></li>
+                <li><a class="nav-link" href="{{ url_for('web.customer.customers_page') }}"><i class="bi bi-truck"></i> Customers</a></li>
                 <li><a class="nav-link" href="{{ url_for('cashflow.cashflow_create') }}"><i class="bi bi-truck"></i> Insert Cashflow</a></li>
                 <li><a class="nav-link" href="{{ url_for('cashflow.cashflow_transactions') }}"><i class="bi bi-truck"></i> Cashflow</a></li>
 
@@ -37,7 +37,6 @@
             <div class="flex-grow-1 p-4">
 
                 <h3 class="fw-bold mb-4">{% block page_title %}{% endblock %}</h3>
-
 
                 {% block content %}{% endblock %}
 

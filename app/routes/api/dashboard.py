@@ -1,22 +1,16 @@
-
 from datetime import datetime, timedelta, timezone
 from flask import (
-    Blueprint, render_template, 
-    request, session, jsonify
+    Blueprint, request, 
+    session, jsonify
 )
 from app.lib.supabase_client import supabase
 from app.helpers.auth import login_required
 
 
-dashboard_bp = Blueprint('dashboard', __name__)
-
-@dashboard_bp.route('/dashboard')
-@login_required
-def dashboard():
-    return render_template('dashboard.html')
+dashboard_api_bp = Blueprint('dashboard_api', __name__)
 
 
-@dashboard_bp.route('/api/dashboard/kpi')
+@dashboard_api_bp.route('/kpi')
 @login_required
 def api_dashboard_kpi():
     try:
@@ -87,7 +81,8 @@ def api_dashboard_kpi():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@dashboard_bp.route('/api/dashboard/chart')
+
+@dashboard_api_bp.route('/daily_order_summary')
 @login_required
 def api_dashboard_chart():
     try:

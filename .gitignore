@@ -10,3 +10,6 @@ logs
 *.txt
 products_export.xlsx
 .env
+export*.xlsx
+
+tech-care

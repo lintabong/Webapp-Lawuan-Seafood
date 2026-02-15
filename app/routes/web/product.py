@@ -5,16 +5,14 @@ from app.helpers.auth import login_required
 
 products_bp = Blueprint('products', __name__)
 
-@products_bp.route("/my-products")
+@products_bp.route('/my-products')
 @login_required
 def products():
-    """Render the products page (HTML only)"""
-    return render_template("products.html")
+    return render_template('product/list_product.html')
 
 @products_bp.route("/api/products")
 @login_required
 def api_products():
-    """API endpoint for products list"""
     try:
         supabase.postgrest.auth(session["access_token"])
         

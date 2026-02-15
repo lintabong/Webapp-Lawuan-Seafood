@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Order{% endblock %}
+{% block page_title %}Edit Order #<span id="orderNumber"></span>{% endblock %}
+
+{% block content %}
+    <div class="card p-4">
+        <form id="orderForm">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        Order Date <span class="text-danger">*</span>
+                    </label>
+                    <input type="datetime-local" class="form-control" id="orderDate" required>
+                </div>
+            
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">
+                        Customer <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <select class="form-select" id="customerId" required>
+                            <option value="">Loading customers...</option>
+                        </select>
+                        <span class="spinner-small ms-2 mt-2" id="customerLoading"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Details -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Delivery Type</label>
+                    <select class="form-select" id="deliveryType">
+                        <option value="pickup">Pickup</option>
+                        <option value="delivery">Delivery</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Delivery Price</label>
+                    <input type="number" class="form-control" id="deliveryPrice" 
+                        value="0" min="0" step="1000" onchange="calculateTotal()">
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label fw-bold mb-0">
+                        Order Items <span class="text-danger">*</span>
+                    </label>
+                    
+                </div>
+            
+                <div id="orderItems"></div>
+
+                <button type="button" class="btn btn-sm btn-primary" onclick="addOrderItem()">
+                    <i class="bi bi-plus-circle"></i> Add Item
+                </button>
+            
+                <div id="itemsLoading" class="text-center py-3">
+                    <div class="spinner-small d-inline-block"></div>
+                    <small class="text-muted ms-2">Loading order data...</small>
+                </div>
+            </div>
+
+            <!-- Total Summary -->
+            <div class="card bg-light mb-4">
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-6"><strong>Subtotal:</strong></div>
+                        <div class="col-6 text-end" id="subtotalDisplay">Rp 0</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6"><strong>Delivery:</strong></div>
+                        <div class="col-6 text-end" id="deliveryDisplay">Rp 0</div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-6"><h5 class="mb-0">Total:</h5></div>
+                        <div class="col-6 text-end"><h5 class="mb-0 text-primary" id="totalDisplay">Rp 0</h5></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Status -->
+            <div class="mb-4">
+                <label class="form-label fw-bold">Order Status</label>
+                <select class="form-select" id="orderStatus">
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <i class="bi bi-check-circle"></i> Update Order
+                </button>
+                <a href="{{ url_for('web.orders.orders') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        let products = [];
+        let itemCounter = 0;
+        let orderId = null;
+        let existingItems = [];
+
+        function formatRupiah(amount) {
+            return new Intl.NumberFormat('id-ID').format(amount);
+        }
+
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed top-0 end-0 m-3`;
+            toast.style.zIndex = '9999';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        async function loadCustomers() {
+            try {
+                const response = await fetch('/api/customers');
+                const customers = await response.json();
+                
+                const select = document.getElementById('customerId');
+                select.innerHTML = '<option value="">Select a customer...</option>' +
+                customers.map(c => `
+                    <option value="${c.id}">
+                    ${c.name}${c.phone ? ' - ' + c.phone : ''}
+                    </option>
+                `).join('');
+                
+                document.getElementById('customerLoading').classList.add('hidden');
+                
+            } catch (error) {
+                console.error('Error loading customers:', error);
+                showToast('Failed to load customers', 'error');
+            }
+        }
+
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products/active');
+                products = await response.json();
+                
+            } catch (error) {
+                console.error('Error loading products:', error);
+                showToast('Failed to load products', 'error');
+            }
+        }
+
+        async function loadOrderData() {
+            try {
+                // Get order ID from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                orderId = urlParams.get('id');
+                
+                if (!orderId) {
+                    showToast('Order ID not found', 'error');
+                    window.location.href = '/my-orders';
+                    return;
+                }
+
+                const response = await fetch(`/api/orders/${orderId}`);
+                if (!response.ok) {
+                    throw new Error('Order not found');
+                }
+                
+                const order = await response.json();
+                
+                // Set order number in title
+                document.getElementById('orderNumber').textContent = order.id;
+                
+                // Populate form fields
+                const orderDate = new Date(order.order_date);
+                orderDate.setMinutes(orderDate.getMinutes() - orderDate.getTimezoneOffset());
+                document.getElementById('orderDate').value = orderDate.toISOString().slice(0, 16);
+                
+                document.getElementById('customerId').value = order.customer_id;
+                document.getElementById('deliveryType').value = order.delivery_type;
+                document.getElementById('deliveryPrice').value = order.delivery_price || 0;
+                document.getElementById('orderStatus').value = order.status;
+                
+                // Load order items
+                order.items.forEach(item => {
+                    addOrderItem(item);
+                    existingItems.push(item.id);
+                });
+                
+                document.getElementById('itemsLoading').classList.add('hidden');
+                calculateTotal();
+                
+            } catch (error) {
+                console.error('Error loading order:', error);
+                showToast('Failed to load order data', 'error');
+                setTimeout(() => {
+                    window.location.href = '/my-orders';
+                }, 2000);
+            }
+        }
+
+        function addOrderItem(existingItem = null) {
+            itemCounter++;
+            const itemHtml = `
+                <div class="card mb-3" id="item-${itemCounter}" data-item-id="${existingItem ? existingItem.id : ''}">
+                <div class="card-body">
+                    <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small">Product</label>
+                        <select class="form-select form-select-sm product-select" 
+                                data-item="${itemCounter}" required
+                                onchange="updateItemPrices(${itemCounter})">
+                        <option value="">Select product...</option>
+                        ${products.map(p => `
+                            <option value="${p.id}" 
+                                    data-buy-price="${p.buy_price}" 
+                                    data-sell-price="${p.sell_price}"
+                                    data-unit="${p.unit}"
+                                    data-stock="${p.stock}"
+                                    ${existingItem && existingItem.product_id === p.id ? 'selected' : ''}>
+                            ${p.name} (Stock: ${p.stock} ${p.unit})
+                            </option>
+                        `).join('')}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-1">
+                        <label class="form-label small">Quantity</label>
+                        <input type="number" class="form-control form-control-sm quantity-input" 
+                            data-item="${itemCounter}" min="0.01" step="0.01" 
+                            value="${existingItem ? existingItem.quantity : 1}" required
+                            oninput="updateItemSubtotal(${itemCounter})">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small">Buy Price</label>
+                        <input type="number" class="form-control form-control-sm buy-price" 
+                            data-item="${itemCounter}" 
+                            value="${existingItem ? existingItem.buy_price : ''}" readonly>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small">Sell Price</label>
+                        <input type="number" class="form-control form-control-sm sell-price" 
+                            data-item="${itemCounter}" min="0" step="1000" 
+                            value="${existingItem ? existingItem.sell_price : ''}" required
+                            oninput="updateItemSubtotal(${itemCounter})">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small">Subtotal</label>
+                        <input type="text" class="form-control form-control-sm item-subtotal" 
+                            data-item="${itemCounter}" readonly value="Rp 0">
+                    </div>
+                    
+                    <div class="col-md-1">
+                        <label class="form-label small">&nbsp;</label>
+                        <button type="button" class="btn btn-sm btn-danger w-100" 
+                                onclick="removeOrderItem(${itemCounter})">
+                        <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    </div>
+                </div>
+                </div>
+            `;
+            
+            document.getElementById('orderItems').insertAdjacentHTML('beforeend', itemHtml);
+
+            if (existingItem) {
+                updateItemSubtotal(itemCounter);
+            }
+        }
+
+        function updateItemPrices(itemId) {
+            const item = document.querySelector(`#item-${itemId}`);
+            const select = item.querySelector('.product-select');
+            const option = select.options[select.selectedIndex];
+            
+            if (option.value) {
+                const buyPrice = option.getAttribute('data-buy-price');
+                const sellPrice = option.getAttribute('data-sell-price');
+                
+                item.querySelector('.buy-price').value = buyPrice;
+                item.querySelector('.sell-price').value = sellPrice;
+                
+                updateItemSubtotal(itemId);
+            }
+        }
+
+        function updateItemSubtotal(itemId) {
+            const item = document.querySelector(`#item-${itemId}`);
+            const quantity = parseFloat(item.querySelector('.quantity-input').value) || 0;
+            const sellPrice = parseFloat(item.querySelector('.sell-price').value) || 0;
+            const subtotal = quantity * sellPrice;
+            
+            item.querySelector('.item-subtotal').value = 'Rp ' + formatRupiah(subtotal);
+            calculateTotal();
+        }
+
+        function removeOrderItem(itemId) {
+            const items = document.querySelectorAll('#orderItems .card');
+            if (items.length > 1) {
+                document.getElementById(`item-${itemId}`).remove();
+                calculateTotal();
+            } else {
+                showToast('At least one item is required', 'error');
+            }
+        }
+
+        function calculateTotal() {
+            let subtotal = 0;
+            
+            document.querySelectorAll('#orderItems .card').forEach(item => {
+                const quantity = parseFloat(item.querySelector('.quantity-input').value) || 0;
+                const sellPrice = parseFloat(item.querySelector('.sell-price').value) || 0;
+                subtotal += quantity * sellPrice;
+            });
+            
+            const deliveryPrice = parseFloat(document.getElementById('deliveryPrice').value) || 0;
+            const total = subtotal + deliveryPrice;
+            
+            document.getElementById('subtotalDisplay').textContent = 'Rp ' + formatRupiah(subtotal);
+            document.getElementById('deliveryDisplay').textContent = 'Rp ' + formatRupiah(deliveryPrice);
+            document.getElementById('totalDisplay').textContent = 'Rp ' + formatRupiah(total);
+        }
+
+        // Form submission
+        document.getElementById('orderForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const items = [];
+            const orderItems = document.querySelectorAll('#orderItems .card');
+            let itemsToDelete = [];
+            
+            let valid = true;
+            orderItems.forEach(item => {
+                const productSelect = item.querySelector('.product-select');
+                const productId = productSelect.value;
+                
+                if (!productId) {
+                    valid = false;
+                    return;
+                }
+                
+                const itemData = {
+                    product_id: parseInt(productId),
+                    quantity: parseFloat(item.querySelector('.quantity-input').value),
+                    buy_price: parseFloat(item.querySelector('.buy-price').value),
+                    sell_price: parseFloat(item.querySelector('.sell-price').value)
+                };
+                
+                // Include item ID if it exists (for existing items)
+                const existingItemId = item.getAttribute('data-item-id');
+                if (existingItemId) {
+                    itemData.id = parseInt(existingItemId);
+                }
+                
+                items.push(itemData);
+            });
+            
+            if (!valid) {
+                showToast('Please select a product for all items', 'error');
+                return;
+            }
+            
+            // Find deleted items
+            const currentItemIds = items.filter(i => i.id).map(i => i.id);
+            itemsToDelete = existingItems.filter(id => !currentItemIds.includes(id));
+            
+            const orderData = {
+                order_date: document.getElementById('orderDate').value,
+                customer_id: parseInt(document.getElementById('customerId').value),
+                delivery_type: document.getElementById('deliveryType').value,
+                delivery_price: parseFloat(document.getElementById('deliveryPrice').value) || 0,
+                status: document.getElementById('orderStatus').value,
+                items: items,
+                items_to_delete: itemsToDelete
+            };
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-small"></span> Updating...';
+            
+            try {
+                const response = await fetch(`/api/orders/${orderId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showToast('Order updated successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/my-orders';
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || 'Failed to update order');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showToast(error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Update Order';
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Load products first
+            await loadProducts();
+            // Load customers
+            await loadCustomers();
+            // Load order data
+            await loadOrderData();
+        });
+    </script>
+{% endblock %}

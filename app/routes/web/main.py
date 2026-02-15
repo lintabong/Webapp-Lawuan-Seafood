@@ -10,7 +10,7 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    return redirect(url_for('main.login'))
+    return redirect(url_for('web.main.login'))
 
 
 @main_bp.route('/login', methods=['GET', 'POST'])
@@ -27,7 +27,7 @@ def login():
         except Exception:
             return render_template(
                 'login.html',
-                error='Login gagal'
+                error='Cant Login'
             )
 
         if res.session:
@@ -41,15 +41,14 @@ def login():
             return redirect('/dashboard')
 
         return render_template(
-            "login.html",
-            error="Email atau password salah"
+            'login.html',
+            error='Wrong Email or Password'
         )
 
-    return render_template("login.html")
+    return render_template('login.html')
 
 
-
-@main_bp.route("/logout")
+@main_bp.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for("main.login"))
+    return redirect(url_for('main.login'))

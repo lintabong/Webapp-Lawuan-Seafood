@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Form{% endblock %}
+{% block page_title %}Customer{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <div class="card-body">
+            <form id="customerForm">
+                <input type="hidden" id="customerId" value="{{ customer.id if customer }}">
+
+                <div class="mb-3">
+                    <label class="form-label">Name *</label>
+                    <input type="text" class="form-control" id="name"
+                        value="{{ customer.name if customer }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-control" id="phone"
+                        value="{{ customer.phone if customer }}">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Address</label>
+                    <textarea class="form-control" id="address">{{ customer.address if customer }}</textarea>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Latitude</label>
+                        <input type="number" step="any" class="form-control" id="latitude"
+                            value="{{ customer.latitude if customer }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Longitude</label>
+                        <input type="number" step="any" class="form-control" id="longitude"
+                            value="{{ customer.longitude if customer }}">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="saveBtn">
+                    <span id="saveBtnText">Save Customer</span>
+                    <span id="saveBtnSpinner" class="spinner-border spinner-border-sm ms-2 d-none"></span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("customerForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+
+            const saveBtn = document.getElementById("saveBtn");
+            const saveBtnText = document.getElementById("saveBtnText");
+            const saveBtnSpinner = document.getElementById("saveBtnSpinner");
+
+            // 🔒 Disable button + show spinner
+            saveBtn.disabled = true;
+            saveBtnText.textContent = "Saving...";
+            saveBtnSpinner.classList.remove("d-none");
+
+            const id = document.getElementById("customerId").value;
+
+            const payload = {
+                name: document.getElementById("name").value,
+                phone: document.getElementById("phone").value,
+                address: document.getElementById("address").value,
+                latitude: document.getElementById("latitude").value || null,
+                longitude: document.getElementById("longitude").value || null
+            };
+
+            const isEdit = id && id !== "";
+            const url = isEdit ? `/api/customers/${id}` : "/api/customers";
+            const method = isEdit ? "PUT" : "POST";
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(isEdit ? "Customer updated!" : "Customer created!");
+                    window.location.href = "/customer-map";
+                    return;
+                } else {
+                    alert(result.error || "Failed");
+                }
+
+            } catch (err) {
+                alert("Request failed");
+            }
+
+            saveBtn.disabled = false;
+            saveBtnText.textContent = "Save Customer";
+            saveBtnSpinner.classList.add("d-none");
+        });
+    </script>
+{% endblock %}
