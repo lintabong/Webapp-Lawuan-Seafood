@@ -34,3 +34,6 @@
 
 1.10.0
 - Split Cashflow web and api
+
+1.11.0
+- Apply model on `transaction_categories` and `products`
