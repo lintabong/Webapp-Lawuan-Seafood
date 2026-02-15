@@ -12,10 +12,7 @@ def create_app():
     load_dotenv()
 
     app = Flask(__name__)
-    app.secret_key = os.getenv('FLASK_SECRET_KEY', "dev-secret")
-
-    from app.routes.cashflow import cashflow_bp
-    app.register_blueprint(cashflow_bp)
+    app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret')
 
     from app.routes.web import web_bp
     app.register_blueprint(web_bp, url_prefix='/')

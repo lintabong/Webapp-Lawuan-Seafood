@@ -31,3 +31,6 @@
 
 1.9.0
 - Merge delivery orders into orders
+
+1.10.0
+- Split Cashflow web and api

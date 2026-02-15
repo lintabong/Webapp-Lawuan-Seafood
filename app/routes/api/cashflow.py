@@ -1,9 +1,9 @@
 
+
 import re
 from datetime import datetime, timezone, timedelta
 from flask import (
     Blueprint,
-    render_template,
     jsonify,
     session,
     request
@@ -12,58 +12,10 @@ from app.lib.supabase_client import supabase
 from app.helpers.auth import login_required
 from app.constants import CASHFLOW_ITEMS_PER_PAGE
 
-cashflow_bp = Blueprint('cashflow', __name__)
+cashflow_api_bp = Blueprint('cashflow_api', __name__)
 
 
-@cashflow_bp.route('/cashflow/create')
-@login_required
-def cashflow_create():
-    access_token = session.get('access_token')
-    supabase.postgrest.auth(access_token)
-
-    categories = (
-        supabase.table('cashflow_categories')
-        .select('id, name, type')
-        .order('name')
-        .execute()
-        .data
-    )
-
-    products = (
-        supabase.table('products')
-        .select('id, name, unit, buy_price, stock')
-        .eq('is_active', True)
-        .order('name')
-        .execute()
-        .data
-    )
-
-    return render_template(
-        'cashflow_create.html',
-        categories=categories,
-        products=products
-    )
-
-@cashflow_bp.route('/cashflow/transactions')
-@login_required
-def cashflow_transactions():
-    access_token = session.get('access_token')
-    supabase.postgrest.auth(access_token)
-
-    categories = (
-        supabase.table('cashflow_categories')
-        .select('id, name, type')
-        .order('name')
-        .execute()
-        .data
-    )
-
-    return render_template(
-        'cashflow_transactions.html',
-        categories=categories
-    )
-
-@cashflow_bp.route('/api/cashflow/transactions')
+@cashflow_api_bp.route('/cashflow/transactions')
 @login_required
 def api_cashflow_transactions():
     access_token = session.get('access_token')
@@ -231,7 +183,7 @@ def api_cashflow_transactions():
             'error': str(e)
         }), 500
 
-@cashflow_bp.route('/api/cashflow', methods=['POST'])
+@cashflow_api_bp.route('/cashflow', methods=['POST'])
 @login_required
 def api_cashflow_create():
     data = request.json
