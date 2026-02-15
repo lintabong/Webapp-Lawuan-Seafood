@@ -10,6 +10,11 @@ orders_bp = Blueprint('orders', __name__)
 def orders():
     return render_template('order/orders.html')
 
+@orders_bp.route('/delivery-order')
+@login_required
+def delivery_order():
+    return render_template('order/delivery_order.html')
+
 
 @orders_bp.route('/orders/create')
 @login_required

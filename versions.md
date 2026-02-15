@@ -28,3 +28,6 @@
 
 1.8.0
 - Major edit on foldering
+
+1.9.0
+- Merge delivery orders into orders

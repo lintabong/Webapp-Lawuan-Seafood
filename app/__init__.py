@@ -14,9 +14,6 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.getenv('FLASK_SECRET_KEY', "dev-secret")
 
-    from app.routes.delivery import delivery_bp
-    app.register_blueprint(delivery_bp)
-
     from app.routes.cashflow import cashflow_bp
     app.register_blueprint(cashflow_bp)
 

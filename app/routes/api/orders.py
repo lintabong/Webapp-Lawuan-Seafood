@@ -1,6 +1,8 @@
 
+from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 from app.helpers.auth import login_required
+from app.repositories.orders_repo import list_order_by_date
 from app.services.orders_service import (
     list_orders_service,
     create_order_service,
@@ -36,6 +38,26 @@ def update_status(order_id):
         request.get_json().get('status')
     ))
 
+@orders_api_bp.route('/delivery-orders')
+@login_required
+def api_delivery_orders():
+    try:
+        access_token = session.get('access_token')
+        if not access_token:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        date = request.args.get('date')
+        if not date:
+            date = datetime.now().strftime('%Y-%m-%d')
+
+        orders = list_order_by_date(date)
+
+        return jsonify(orders)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 # from flask import (
 #     Blueprint, request, 
