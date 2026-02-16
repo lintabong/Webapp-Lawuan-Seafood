@@ -38,3 +38,4 @@
 1.11.0
 - Apply model on `transaction_categories` and `products`
 - Modularized orders
+- Add dashboard logger

@@ -1,13 +1,16 @@
+
 from datetime import datetime, timedelta, timezone
 from flask import (
     Blueprint, request, 
     session, jsonify
 )
+from app import log
 from app.lib.supabase_client import supabase
 from app.helpers.auth import login_required
 
-
 dashboard_api_bp = Blueprint('dashboard_api', __name__)
+
+logger = log.get_logger('API_DASHBOARD')
 
 
 @dashboard_api_bp.route('/kpi')
@@ -67,7 +70,7 @@ def api_dashboard_kpi():
 
         return jsonify({
             'total_customers': total_customers,
-            'current_cash': str(current_cash),
+            'current_cash': str(round(current_cash)),
             'inventory_value': str(inventory_value - (15/100*inventory_value)),
             'pending_total_amount': str(pending_total_amount - (15/100*pending_total_amount)),
             'income': {
@@ -79,6 +82,7 @@ def api_dashboard_kpi():
         })
 
     except Exception as e:
+        logger.error(f'Found error: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
 
@@ -114,4 +118,5 @@ def api_dashboard_chart():
         return jsonify(daily_order_summary)
 
     except Exception as e:
+        logger.error(f'Found error: {str(e)}')
         return jsonify({'error': str(e)}), 500
