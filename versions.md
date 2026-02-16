@@ -39,3 +39,4 @@
 - Apply model on `transaction_categories` and `products`
 - Modularized orders
 - Add dashboard logger
+- Split API and Web on product-route
