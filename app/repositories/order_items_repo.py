@@ -1,6 +1,7 @@
 
 from app.repositories.supabase_repo import auth
 from app.lib.supabase_client import supabase
+from app.models.order_items import OrderItem
 
 def insert_items(items):
     auth()
@@ -17,3 +18,13 @@ def delete_item(item_id, order_id):
         .eq('id', item_id) \
         .eq('order_id', order_id) \
         .execute()
+
+def update_item_is_prepared(item_id, is_prepared=True):
+    auth()
+
+    response = supabase.table('order_items') \
+        .update({'is_prepared': is_prepared}) \
+        .eq('id', item_id) \
+        .execute()
+
+    return response.data

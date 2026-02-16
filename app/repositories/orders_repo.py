@@ -105,13 +105,33 @@ def list_order_by_date(date):
 
     return orders
 
-def get_order(order_id):
+def get_order_by_id(order_id):
     auth()
-    return supabase.table('orders') \
-        .select('*') \
+
+    response = supabase.table('orders') \
+        .select('''
+            id,
+            order_date,
+            status,
+            total_amount,
+            delivery_price,
+            delivery_type,
+            customer_id,
+            customers!inner(id, name, phone),
+            order_items(
+                id,
+                product_id,
+                quantity,
+                buy_price,
+                sell_price,
+                products(id, name, unit)
+            )
+        ''') \
         .eq('id', order_id) \
         .single() \
-        .execute().data
+        .execute()
+    
+    return response.data
 
 def insert_order(data):
     auth()

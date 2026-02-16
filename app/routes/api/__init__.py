@@ -5,7 +5,7 @@ api_bp = Blueprint('api', __name__)
 
 from .customer import customer_api_bp
 from .dashboard import dashboard_api_bp
-from .orders import orders_api_bp
+from .order import orders_api_bp
 from .product import products_api_bp
 from .cashflow import cashflow_api_bp
 

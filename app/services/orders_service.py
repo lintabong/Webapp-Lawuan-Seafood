@@ -1,28 +1,17 @@
 
-from app.repositories.orders_repo import (
-    list_orders,
-    get_order,
-    insert_order,
-    update_order
+from app.repositories import (
+    orders_repo,
+    order_items_repo
 )
-from app.repositories.order_items_repo import (
-    insert_items,
-    update_item,
-    delete_item
-)
-from app.services.cashflow_service import (
-    create_cashflow,
-    rollback_cashflow
-)
-
-VALID_STATUSES = {'pending', 'paid', 'delivered', 'cancelled'}
+from app.services import cashflow_service
+from app.constants import VALID_STATUSES
 
 def list_orders_service(params):
     page = max(int(params.get('page', 1)), 1)
     per_page = min(max(int(params.get('per_page', 25)), 1), 100)
     offset = (page - 1) * per_page
 
-    response = list_orders(params, offset, per_page)
+    response = orders_repo.list_orders(params, offset, per_page)
 
     return {
         'orders': response.data,
@@ -43,7 +32,7 @@ def create_order_service(data, user_id):
     total = sum(i['quantity'] * i['sell_price'] for i in items)
     delivery = data.get('delivery_price', 0)
 
-    order = insert_order({
+    order = orders_repo.insert_order({
         'customer_id': data['customer_id'],
         'order_date': data.get('order_date'),
         'status': data.get('status', 'pending'),
@@ -53,7 +42,7 @@ def create_order_service(data, user_id):
         'created_by': user_id
     })
 
-    insert_items([
+    order_items_repo.insert_items([
         {
             'order_id': order['id'],
             **i
@@ -62,7 +51,7 @@ def create_order_service(data, user_id):
 
     cash_balance = None
     if order['status'] in ['paid', 'delivered']:
-        cash_balance = create_cashflow(order['id'], total, delivery)
+        cash_balance = cashflow_service.create_cashflow(order['id'], total, delivery)
 
     return {
         'success': True,
@@ -71,17 +60,17 @@ def create_order_service(data, user_id):
     }
 
 def update_order_service(order_id, data):
-    order = get_order(order_id)
+    order = orders_repo.get_order_by_id(order_id)
     if not order:
-        return {'error': 'Order not found'}, 404
+        return 'Order not found', 404
 
     if order['status'] != 'pending':
-        return {'error': 'Only pending orders editable'}, 400
+        return 'Only pending orders editable', 400
 
     subtotal = sum(i['quantity'] * i['sell_price'] for i in data['items'])
     delivery = data.get('delivery_price', 0)
 
-    update_order(order_id, {
+    orders_repo.update_order(order_id, {
         'order_date': data['order_date'],
         'customer_id': data['customer_id'],
         'delivery_type': data['delivery_type'],
@@ -91,13 +80,13 @@ def update_order_service(order_id, data):
     })
 
     for item_id in data.get('items_to_delete', []):
-        delete_item(item_id, order_id)
+        order_items_repo.delete_item(item_id, order_id)
 
     for item in data['items']:
         if item.get('id'):
-            update_item(item['id'], item)
+            order_items_repo.update_item(item['id'], item)
         else:
-            insert_items([{**item, 'order_id': order_id}])
+            order_items_repo.insert_items([{**item, 'order_id': order_id}])
 
     return {'success': True, 'order_id': order_id}
 
@@ -105,21 +94,21 @@ def update_order_status_service(order_id, new_status):
     if new_status not in VALID_STATUSES:
         return {'error': 'Invalid status'}, 400
 
-    order = get_order(order_id)
+    order = orders_repo.get_order_by_id(order_id)
     if not order:
         return {'error': 'Order not found'}, 404
 
     old = order['status']
-    update_order(order_id, {'status': new_status})
+    orders_repo.update_order(order_id, {'status': new_status})
 
     total = float(order['total_amount'])
     delivery = float(order['delivery_price'])
 
     if old in ['pending', 'cancelled'] and new_status in ['paid', 'delivered']:
-        balance = create_cashflow(order_id, total, delivery)
+        balance = cashflow_service.create_cashflow(order_id, total, delivery)
         action = 'created'
     elif old in ['paid', 'delivered'] and new_status == 'cancelled':
-        balance = rollback_cashflow(order_id, total, delivery)
+        balance = cashflow_service.rollback_cashflow(order_id, total, delivery)
         action = 'deleted'
     else:
         balance = None
