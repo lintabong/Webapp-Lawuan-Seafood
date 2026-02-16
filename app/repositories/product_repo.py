@@ -4,7 +4,7 @@ from app.lib.supabase_client import supabase
 from app.models.product import Product
 
 
-def list_product(is_active, search):
+def list_product(is_active='true', search=None):
     auth()
 
     query = supabase.table('products') \

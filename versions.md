@@ -40,3 +40,6 @@
 - Modularized orders
 - Add dashboard logger
 - Split API and Web on product-route
+
+1.11.1
+- Fix product api

@@ -14,8 +14,8 @@ logger = log.get_logger('API_PRODUCT')
 def api_products():
     try:
         products = list_product(
-            request.args.get('is_active'),
-            request.args.get('search')
+            request.args.get('is_active', 'true'),
+            request.args.get('search', None)
         )
         
         return jsonify(products)

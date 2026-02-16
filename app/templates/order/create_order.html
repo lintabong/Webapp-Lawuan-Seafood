@@ -148,7 +148,7 @@
 
         async function loadProducts() {
             try {
-                const response = await fetch('/api/products/active');
+                const response = await fetch('/api/products');
                 products = await response.json();
                 
                 document.getElementById('itemsLoading').classList.add('hidden');
