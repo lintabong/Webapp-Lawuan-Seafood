@@ -1,4 +1,5 @@
 
+from app import exceptions
 from app.repositories import (
     orders_repo,
     order_items_repo
@@ -23,11 +24,11 @@ def list_orders_service(params):
 
 def create_order_service(data, user_id):
     if not data.get('customer_id'):
-        return {'error': 'Customer required'}, 400
+        raise exceptions.ValidationError('Customer required')
 
     items = data.get('items', [])
     if not items:
-        return {'error': 'At least one item required'}, 400
+        raise exceptions.ValidationError('At least one item required')
 
     total = sum(i['quantity'] * i['sell_price'] for i in items)
     delivery = data.get('delivery_price', 0)

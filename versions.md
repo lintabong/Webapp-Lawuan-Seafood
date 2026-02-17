@@ -43,3 +43,7 @@
 
 1.11.1
 - Fix product api
+
+1.12.0
+- Fix Session get User Id
+- Add exceptions.py

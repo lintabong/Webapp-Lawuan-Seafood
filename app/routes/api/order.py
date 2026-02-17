@@ -1,7 +1,7 @@
 
 from datetime import datetime
 from flask import Blueprint, request, jsonify, session
-from app import log
+from app import log, exceptions
 from app.helpers.auth import login_required
 from app.repositories.orders_repo import (
     list_order_by_date, 
@@ -29,10 +29,21 @@ def orders():
 @orders_api_bp.route('/orders', methods=['POST'])
 @login_required
 def create_order():
-    return jsonify(create_order_service(
-        request.get_json(),
-        session.get('user_id')
-    ))
+    try:
+        result = create_order_service(
+            request.get_json(), 
+            session['user']['id']
+        )
+        return jsonify(result), 201
+
+    except exceptions.ValidationError as e:
+        return jsonify({'error': str(e)}), 400
+
+    except exceptions.ServiceError as e:
+        return jsonify({'error': str(e)}), 500
+
+    except Exception as e:
+        return jsonify({'error': 'Unexpected error'}), 500
 
 
 @orders_api_bp.route('/orders/<int:order_id>', methods=['PUT'])
