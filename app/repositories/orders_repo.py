@@ -39,6 +39,27 @@ def list_orders(filters, offset, limit):
 
     return query.range(offset, offset + limit - 1).execute()
 
+def get_orders_by_ids(order_ids):
+    if not order_ids:
+        return {}
+
+    auth()
+    res = supabase.table('orders') \
+        .select('''
+            id,
+            customers(name),
+            order_items(
+                quantity,
+                buy_price,
+                sell_price,
+                products(name, unit)
+            )
+        ''') \
+        .in_('id', order_ids) \
+        .execute()
+
+    return {o['id']: o for o in (res.data or [])}
+
 def list_order_by_date(date):
     auth()
     response = (

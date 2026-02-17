@@ -30,9 +30,23 @@ def orders():
 @login_required
 def create_order():
     try:
+        data = request.get_json()
+
+        delivery_price = data.get('delivery_price', 0)
+        order_date = data.get('order_date')
+        customer_id = data['customer_id']
+        delivery_type = data.get('delivery_type', 'pickup')
+        status = data.get('status', 'pending')
+        items = data.get('items', [])
+
         result = create_order_service(
-            request.get_json(), 
-            session['user']['id']
+            user_id=session['user']['id'], 
+            customer_id=customer_id, 
+            items=items, 
+            delivery_price=delivery_price, 
+            delivery_type=delivery_type, 
+            status=status, 
+            order_date=order_date
         )
         return jsonify(result), 201
 
@@ -49,16 +63,24 @@ def create_order():
 @orders_api_bp.route('/orders/<int:order_id>', methods=['PUT'])
 @login_required
 def update_order(order_id):
-    return jsonify(update_order_service(order_id, request.get_json()))
+    return jsonify(
+        update_order_service(
+            order_id, 
+            request.get_json()
+        )
+    )
 
 
 @orders_api_bp.route('/orders/<int:order_id>/status', methods=['PUT'])
 @login_required
 def update_status(order_id):
-    return jsonify(update_order_status_service(
-        order_id,
-        request.get_json().get('status')
-    ))
+    return jsonify(
+        update_order_status_service(
+            session['user']['id'],
+            order_id,
+            request.get_json().get('status')
+        )
+    )
 
 
 @orders_api_bp.route('/delivery-orders')

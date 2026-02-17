@@ -370,7 +370,7 @@
 
         // Render transaction reference details
         function renderReference(transaction) {
-            if (transaction.type === 'product_purchases' && transaction.items.length > 0) {
+            if (transaction.category === 'Product Purchases' && transaction.items.length > 0) {
                 return `
                     <div class="small">
                         <strong>Product Purchase</strong>
@@ -380,7 +380,7 @@
                                 ${transaction.items.map(item => `
                                     <div class="mt-1">
                                         • ${item.name}: 
-                                        ${item.quantity} ${item.unit} × ${formatCurrency(item.buy_price)} = 
+                                        ${item.quantity} ${item.unit} × ${formatCurrency(item.price)} = 
                                         <strong>${formatCurrency(item.subtotal)}</strong>
                                     </div>
                                 `).join('')}

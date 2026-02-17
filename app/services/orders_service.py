@@ -1,11 +1,59 @@
 
+
+from datetime import datetime
 from app import exceptions
+from app import log
 from app.repositories import (
     orders_repo,
-    order_items_repo
+    order_items_repo,
+    transactions_repo,
+    cash_repo,
+    cash_ledger_repo,
 )
-from app.services import cashflow_service
 from app.constants import VALID_STATUSES
+
+logger = log.get_logger('ORDERS_SERVICE')
+
+
+def _apply_cash_inflow(created_by, order_id, total, delivery, transaction_date):
+    total_change = 0
+    main_transaction_id = None
+
+    if total > 0:
+        main_transaction_id = transactions_repo.insert_transaction(
+            category_id=1,
+            transaction_type='sale',
+            amount=total,
+            desc=f'Order #{order_id}',
+            reference_id=order_id,
+            created_by=created_by,
+            transaction_date=transaction_date
+        )
+        total_change += total
+
+    if delivery > 0:
+        transactions_repo.insert_transaction(
+            category_id=2,
+            transaction_type='sale',
+            amount=delivery,
+            desc=f'Delivery Fee for Order #{order_id}',
+            reference_id=order_id,
+            created_by=created_by,
+            transaction_date=transaction_date
+        )
+        total_change += delivery
+
+    balance = int(cash_repo.update_cash_balance(amount=int(total_change)))
+
+    cash_ledger_repo.create_ledger(
+        cash_id=1,
+        amount=int(total_change),
+        balance_after=balance,
+        direction='in',
+        transaction_id=main_transaction_id
+    )
+
+    return balance
 
 def list_orders_service(params):
     page = max(int(params.get('page', 1)), 1)
@@ -22,24 +70,30 @@ def list_orders_service(params):
         'total_pages': (response.count + per_page - 1) // per_page
     }
 
-def create_order_service(data, user_id):
-    if not data.get('customer_id'):
+def create_order_service(
+        user_id, 
+        customer_id, 
+        items, 
+        delivery_price, 
+        delivery_type, 
+        status, 
+        order_date
+    ):
+    if not customer_id:
         raise exceptions.ValidationError('Customer required')
 
-    items = data.get('items', [])
     if not items:
         raise exceptions.ValidationError('At least one item required')
 
     total = sum(i['quantity'] * i['sell_price'] for i in items)
-    delivery = data.get('delivery_price', 0)
 
     order = orders_repo.insert_order({
-        'customer_id': data['customer_id'],
-        'order_date': data.get('order_date'),
-        'status': data.get('status', 'pending'),
+        'customer_id': customer_id,
+        'order_date': order_date,
+        'status': status,
         'total_amount': total,
-        'delivery_price': delivery,
-        'delivery_type': data.get('delivery_type', 'pickup'),
+        'delivery_price': delivery_price,
+        'delivery_type': delivery_type,
         'created_by': user_id
     })
 
@@ -52,7 +106,13 @@ def create_order_service(data, user_id):
 
     cash_balance = None
     if order['status'] in ['paid', 'delivered']:
-        cash_balance = cashflow_service.create_cashflow(order['id'], total, delivery)
+        cash_balance = _apply_cash_inflow(
+            created_by=user_id,
+            order_id=order['id'],
+            total=total,
+            delivery=delivery_price,
+            transaction_date=order_date
+        )
 
     return {
         'success': True,
@@ -63,10 +123,10 @@ def create_order_service(data, user_id):
 def update_order_service(order_id, data):
     order = orders_repo.get_order_by_id(order_id)
     if not order:
-        return 'Order not found', 404
+        raise exceptions.ValidationError('Order not found')
 
     if order['status'] != 'pending':
-        return 'Only pending orders editable', 400
+        raise exceptions.ValidationError('Only pending orders editable')
 
     subtotal = sum(i['quantity'] * i['sell_price'] for i in data['items'])
     delivery = data.get('delivery_price', 0)
@@ -91,33 +151,37 @@ def update_order_service(order_id, data):
 
     return {'success': True, 'order_id': order_id}
 
-def update_order_status_service(order_id, new_status):
+def update_order_status_service(user_id, order_id, new_status):
     if new_status not in VALID_STATUSES:
-        return {'error': 'Invalid status'}, 400
+        raise exceptions.ValidationError('Invalid status')
 
     order = orders_repo.get_order_by_id(order_id)
     if not order:
-        return {'error': 'Order not found'}, 404
+        raise exceptions.ValidationError('Order not found')
 
-    old = order['status']
+    old_status = order['status']
     orders_repo.update_order(order_id, {'status': new_status})
 
     total = float(order['total_amount'])
     delivery = float(order['delivery_price'])
+    transaction_date = datetime.fromisoformat(order['order_date'])
 
-    if old in ['pending', 'cancelled'] and new_status in ['paid', 'delivered']:
-        balance = cashflow_service.create_cashflow(order_id, total, delivery)
+    balance = None
+    action = None
+
+    if old_status in ['pending', 'cancelled'] and new_status in ['paid', 'delivered']:
+        balance = _apply_cash_inflow(
+            created_by=user_id,
+            order_id=order_id,
+            total=total,
+            delivery=delivery,
+            transaction_date=transaction_date
+        )
         action = 'created'
-    elif old in ['paid', 'delivered'] and new_status == 'cancelled':
-        balance = cashflow_service.rollback_cashflow(order_id, total, delivery)
-        action = 'deleted'
-    else:
-        balance = None
-        action = None
 
     return {
         'success': True,
-        'old_status': old,
+        'old_status': old_status,
         'new_status': new_status,
         'cashflow_action': action,
         'cash_balance': balance

@@ -17,6 +17,9 @@
                     <label class="form-label mt-2">Description</label>
                     <input class="form-control" id="description">
 
+                    <label class="form-label mt-2">Date &amp; Time</label>
+                    <input type="datetime-local" class="form-control" id="cashflow_date" required>
+
                     <hr>
 
                     <div id="productFields" class="d-none">
@@ -28,7 +31,7 @@
                     </div>
 
                     <label class="form-label mt-2">Total Amount</label>
-                    <input type="number" step="0.01" id="amount" class="form-control" required readonly>
+                    <input type="number" step="0.01" id="amount" class="form-control" required>
 
                     <button class="btn btn-primary mt-3 w-100">Save</button>
                 </form>
@@ -42,6 +45,15 @@
     const products = {{ products|tojson }};
     let productCounter = 0;
     let selectedProducts = [];
+
+    // Set datepicker default to current local datetime
+    (function setDefaultDate() {
+        const now = new Date();
+        // Format: YYYY-MM-DDTHH:MM (required by datetime-local input)
+        const pad = n => String(n).padStart(2, '0');
+        const localISO = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        document.getElementById('cashflow_date').value = localISO;
+    })();
 
     // 1. Show/hide product fields based on category name
     document.getElementById('category').addEventListener('change', e => {
@@ -170,7 +182,8 @@
         const payload = {
             category_id: categorySelect.value,
             description: document.getElementById('description').value,
-            amount: document.getElementById('amount').value
+            amount: document.getElementById('amount').value,
+            date: document.getElementById('cashflow_date').value  // e.g. "2025-02-17T14:30"
         };
 
         if (isProductPurchase) {

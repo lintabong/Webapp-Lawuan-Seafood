@@ -1,5 +1,5 @@
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from flask import (
     Blueprint, request, 
     session, jsonify
@@ -7,6 +7,7 @@ from flask import (
 from app import log
 from app.lib.supabase_client import supabase
 from app.helpers.auth import login_required
+from app.repositories.cash_repo import get_cash_balance
 
 dashboard_api_bp = Blueprint('dashboard_api', __name__)
 
@@ -26,53 +27,28 @@ def api_dashboard_kpi():
             .count
         )
 
-        cash_response = (
-            supabase
-            .table('cash_accounts')
-            .select('balance')
-            .execute()
-        )
-        current_cash = sum(row['balance'] for row in cash_response.data)
+        current_cash = get_cash_balance()
 
         income_result = supabase.rpc('get_income_comparison').execute()
         income = income_result.data[0] if income_result.data else {}
 
-        products = (
-            supabase
-            .table('products')
-            .select('stock, sell_price')
-            .eq('is_active', True)
-            .execute()
-        )
-
-        inventory_value = sum(
-            float(p['stock']) * float(p['sell_price'])
-            for p in products.data
-        )
-
-        ten_days_ago = (
-            datetime.now(timezone.utc) - timedelta(days=10)
-        ).isoformat()
-
         pending_orders = (
             supabase
             .table('orders')
-            .select('total_amount')
+            .select('total_amount, delivery_price')
             .eq('status', 'pending')
-            .gte('order_date', ten_days_ago)
             .execute()
         )
 
         pending_total_amount = sum(
-            float(o['total_amount'] or 0)
+            (float(o['total_amount'] or 0) + float(o['delivery_price'] or 0))
             for o in pending_orders.data
         )
 
         return jsonify({
             'total_customers': total_customers,
             'current_cash': str(round(current_cash)),
-            'inventory_value': str(inventory_value - (15/100*inventory_value)),
-            'pending_total_amount': str(pending_total_amount - (15/100*pending_total_amount)),
+            'pending_total_amount': str(pending_total_amount),
             'income': {
                 'this_month': income.get('this_month', 0),
                 'last_month': income.get('last_month', 0),
