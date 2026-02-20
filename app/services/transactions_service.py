@@ -102,10 +102,6 @@ def get_cashflow_transactions_service(date_filter, category_filter, page, per_pa
 
     combined.sort(key=lambda x: x['date'], reverse=True)
 
-    for i, row in enumerate(combined):
-        print('=========================================')
-        print(i, row)
-
     return {
         'transactions': combined,
         'total_count': total_count,
