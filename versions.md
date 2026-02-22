@@ -51,3 +51,12 @@
 1.13.0
 - Major update on cash account to cash and cashflow to transactions
 - Remove print
+
+1.14.0
+- Created RPC: apply_cash_inflow
+- Created RPC: create_order_full
+- Created RPC: update_order_full
+- Use RPC instead single query in order services
+- Changed FE: order list to table, not card anymore
+- Created new API: Order items
+- Simpler list order in order_repositories

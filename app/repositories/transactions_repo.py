@@ -11,7 +11,7 @@ def insert_transaction(
         desc='', 
         reference_id=None, 
         created_by='',
-        transaction_date=None
+        transaction_date: datetime = None
     ):
     auth()
 

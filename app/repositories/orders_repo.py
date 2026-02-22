@@ -1,9 +1,24 @@
 
 from datetime import datetime
+
+from app import log
 from app.repositories.supabase_repo import auth
 from app.lib.supabase_client import supabase
+from app.models.order import Order
 
-def list_orders(filters, offset, limit):
+logger = log.get_logger('ORDERS_REPO')
+
+
+def list_orders(
+        filter_name='',
+        filter_status=None,   # None | 'pending' | 'paid' | etc | ['pending','paid']
+        delivery_type=None,   # None | 'delivery' | 'pickup'
+        date=None,            # 'YYYY-MM-DD'
+        require_coords=False, # for routing/maps
+        offset=0,
+        limit=25,
+        order_desc=True
+    ):
     auth()
     query = supabase.table('orders').select(
         '''
@@ -29,15 +44,36 @@ def list_orders(filters, offset, limit):
         )
         ''',
         count='exact'
-    ).order('order_date', desc=True)
+    )
 
-    if filters.get('status') and filters['status'] != 'all':
-        query = query.eq('status', filters['status'])
+    query = query.order('order_date', desc=order_desc)
 
-    if filters.get('search'):
-        query = query.ilike('customers.name', f"%{filters['search']}%")
+    if filter_status:
+        if isinstance(filter_status, list):
+            query = query.in_('status', filter_status)
+        else:
+            query = query.eq('status', filter_status)
 
-    return query.range(offset, offset + limit - 1).execute()
+    if delivery_type:
+        query = query.eq('delivery_type', delivery_type)
+
+    if filter_name:
+        query = query.ilike('customers.name', f"%{filter_name}%")
+
+    if date:
+        query = query.gte('order_date', f'{date}T00:00:00')
+        query = query.lte('order_date', f'{date}T23:59:59')
+
+    if require_coords:
+        query = query.not_.is_('customers.latitude', None)
+        query = query.not_.is_('customers.longitude', None)
+
+    response = query.range(offset, offset + limit - 1).execute()
+
+    return {
+        'data': response.data or [],
+        'count': response.count
+    }
 
 def get_orders_by_ids(order_ids):
     if not order_ids:
@@ -59,72 +95,6 @@ def get_orders_by_ids(order_ids):
         .execute()
 
     return {o['id']: o for o in (res.data or [])}
-
-def list_order_by_date(date):
-    auth()
-    response = (
-        supabase
-        .table('orders')
-        .select('''id,
-            order_date,
-            status,
-            total_amount,
-            delivery_price,
-            delivery_type,
-            customers!inner(
-                name,
-                phone,
-                address,
-                latitude,
-                longitude
-            ),
-            order_items(
-                id,
-                quantity,
-                sell_price,
-                products(name, unit),
-                is_prepared
-            )''')
-        .eq('delivery_type', 'delivery')
-        .in_('status', ['pending', 'paid', 'delivered']) 
-        .gte('order_date', f'{date}T00:00:00')
-        .lte('order_date', f'{date}T23:59:59')
-        .order('order_date')
-        .execute()
-    )
-
-    orders = []
-
-    for o in response.data:
-        customer = o['customers']
-
-        if customer['latitude'] is None or customer['longitude'] is None:
-            continue
-
-        orders.append({
-            'order_id': o['id'],
-            'status': o['status'],
-            'customer_name': customer['name'],
-            'customer_phone': customer['phone'],
-            'address': customer['address'],
-            'latitude': float(customer['latitude']),
-            'longitude': float(customer['longitude']),
-            'delivery_price': float(o['delivery_price'] or 0),
-            'total_amount': float(o['total_amount'] or 0),
-            'products': [
-                {
-                    'item_id': item['id'],
-                    'name': item['products']['name'],
-                    'unit': item['products']['unit'],
-                    'quantity': float(item['quantity']),
-                    'sell_price': float(item['sell_price']),
-                    'is_prepared': item['is_prepared']
-                }
-                for item in o['order_items']
-            ]
-        })
-
-    return orders
 
 def get_order_by_id(order_id):
     auth()
@@ -156,8 +126,24 @@ def get_order_by_id(order_id):
 
 def insert_order(data):
     auth()
-    return supabase.table('orders').insert(data).execute().data[0]
+    response = supabase.table('orders').insert(data).execute()
+
+    if response.data:
+        return response.data[0]
+
+    raise Exception(f'Insert failed: {str(response)}')
 
 def update_order(order_id, data):
     auth()
-    supabase.table('orders').update(data).eq('id', order_id).execute()
+    response = (
+        supabase.table('orders')
+        .update(data)
+        .eq('id', order_id)
+        .execute()
+    )
+
+    if response.data:
+        return response.data[0]
+
+    raise Exception(f"Update failed: {response}")
+
