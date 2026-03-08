@@ -1,0 +1,608 @@
+{% extends "base.html" %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 d-flex">
+            <div class="card p-3 h-100 w-100">
+                <h6 class="text-muted">Customers</h6>
+                <h3 class="fw-bold hidden" id="totalCustomers">-</h3>
+            </div>
+        </div>
+
+        <div class="col-md-3 d-flex">
+            <div class="card p-3 h-100 w-100">
+                <h6 class="text-muted">Current Cash</h6>
+                <h3 class="fw-bold hidden" id="curentCash">-</h3>
+                <small class="text-muted" id="pendingValue"></small>
+            </div>
+        </div>
+
+        <div class="col-md-3 d-flex">
+            <div class="card p-3 h-100 w-100">
+                <h6 class="text-muted">Income (This Month)</h6>
+                <h3 class="fw-bold text-success hidden" id="incomeThisMonth">Rp 0</h3>
+                <small class="text-muted" id="incomeVsLastMonth"></small>
+            </div>
+        </div>
+
+        <div class="col-md-3 d-flex">
+            <div class="card p-3 h-100 w-100">
+                <h6 class="text-muted">Income (Last 30 Days)</h6>
+                <h3 class="fw-bold text-success hidden" id="incomeLast30Days">Rp 0</h3>
+                <small class="text-muted" id="incomeVs30to60"></small>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHART -->
+    <div class="card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Omzet & Profit</h5>
+            <div id="chartLoadingIndicator" class="hidden">
+                <span class="spinner-small"></span>
+                <small class="text-muted ms-2">Loading...</small>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Start Date</label>
+                <input type="date" id="startDate" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">End Date</label>
+                <input type="date" id="endDate" class="form-control">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="updateChart()" id="applyBtn">
+                Apply
+                </button>
+            </div>
+        </div>
+        <div id="chartSkeletonContainer">
+            <div class="skeleton" style="height: 300px; width: 100%;"></div>
+        </div>
+        <canvas id="salesChart" class="hidden"></canvas>
+    </div>
+
+
+{# ─────────────────────────────────────────────────────────────────────────────
+   PASTE THIS BLOCK inside {% block content %} in your dashboard.html,
+   right after the existing chart card.
+   ──────────────────────────────────────────────────────────────────────────── #}
+
+{# ── Cash Ledger – Last 7 Days ─────────────────────────────────────────────── #}
+<div class="card p-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">Cash Flow — Last 7 Days</h5>
+        <span id="cashChartLoading" class="hidden">
+            <span class="spinner-small"></span>
+            <small class="text-muted ms-2">Loading…</small>
+        </span>
+    </div>
+
+    {# Summary pills #}
+    <div class="row g-2 mb-3" id="cashSummaryRow">
+        <div class="col-4">
+            <div class="rounded-3 p-3 text-center" style="background:rgba(25,135,84,.08)">
+                <small class="text-muted d-block">Total In</small>
+                <span class="fw-bold text-success" id="cashTotalIn">—</span>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="rounded-3 p-3 text-center" style="background:rgba(220,53,69,.08)">
+                <small class="text-muted d-block">Total Out</small>
+                <span class="fw-bold text-danger" id="cashTotalOut">—</span>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="rounded-3 p-3 text-center" style="background:rgba(13,110,253,.08)">
+                <small class="text-muted d-block">Net</small>
+                <span class="fw-bold" id="cashNet">—</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="cashChartSkeleton">
+        <div class="skeleton" style="height:220px;width:100%;"></div>
+    </div>
+    <canvas id="cashLedgerChart" class="hidden"></canvas>
+</div>
+
+
+{# ── Most Bought Products ──────────────────────────────────────────────────── #}
+<div class="card p-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">Most Bought Products</h5>
+        <span id="productTableLoading" class="hidden">
+            <span class="spinner-small"></span>
+            <small class="text-muted ms-2">Loading…</small>
+        </span>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Start Date</label>
+            <input type="date" id="productStartDate" class="form-control">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">End Date</label>
+            <input type="date" id="productEndDate" class="form-control">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Top N</label>
+            <select id="productLimit" class="form-select">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" onclick="updateProductTable()" id="productApplyBtn">
+                Apply
+            </button>
+        </div>
+    </div>
+
+    <div id="productTableSkeleton">
+        <div class="skeleton" style="height:200px;width:100%;"></div>
+    </div>
+
+    <div id="productTableContainer" class="hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Product</th>
+                        <th class="text-end">Qty Sold</th>
+                        <th class="text-end">Revenue</th>
+                        <th class="text-end">Profit</th>
+                        <th style="min-width:120px">Share</th>
+                    </tr>
+                </thead>
+                <tbody id="productTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+    <div id="productTableEmpty" class="text-center text-muted py-4 hidden">
+        No sales data for this period.
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        let chartInstance = null;
+
+        function initializeDates() {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30); // Last 30 days
+            
+            document.getElementById('endDate').valueAsDate = endDate;
+            document.getElementById('startDate').valueAsDate = startDate;
+        }
+
+        function formatRupiah(amount) {
+            return new Intl.NumberFormat('id-ID').format(amount);
+        }
+
+        function toggleLoading(elementId, show) {
+            const loadingEl = document.getElementById(elementId + 'Loading');
+            const contentEl = document.getElementById(elementId);
+            
+            if (loadingEl) {
+                loadingEl.classList.toggle('hidden', !show);
+            }
+            if (contentEl) {
+                contentEl.classList.toggle('hidden', show);
+            }
+        }
+
+        // Load KPI data
+        async function loadKPIData() {
+            try {
+                const res = await fetch('/api/kpi');
+                const data = await res.json();
+
+                // Helpers
+                const rupiah = n =>
+                    'Rp ' + Number(n || 0).toLocaleString('id-ID');
+
+                const growthText = (current, previous) => {
+                    if (!previous || previous === 0) return '—';
+                    const diff = ((current - previous) / previous) * 100;
+                    const sign = diff >= 0 ? '+' : '';
+                    return `${sign}${diff.toFixed(1)}% vs previous`;
+                };
+
+                // Totals
+                document.getElementById('totalCustomers').textContent = data.total_customers;
+                toggleLoading('totalCustomers', false);
+                document.getElementById('curentCash').textContent = rupiah(data.current_cash);
+                toggleLoading('curentCash', false);
+
+                document.getElementById('pendingValue').textContent =
+                    rupiah(data.pending_total_amount);
+                toggleLoading('pendingValue', false);
+
+                const income = data.income || {};
+
+                document.getElementById('incomeThisMonth').textContent =
+                    rupiah(income.this_month);
+                    toggleLoading('incomeThisMonth', false);
+
+                document.getElementById('incomeLast30Days').textContent =
+                    rupiah(income.last_30_days);
+                    toggleLoading('incomeLast30Days', false);
+
+                document.getElementById('incomeVsLastMonth').textContent =
+                    growthText(income.this_month, income.last_month);
+                toggleLoading('incomeVsLastMonth', false);
+
+                document.getElementById('incomeVs30to60').textContent =
+                    growthText(income.last_30_days, income.days_30_60);
+                toggleLoading('incomeVs30to60', false);
+                
+            } catch (error) {
+                console.error('Error loading KPI data:', error);
+
+                ['totalCustomers', 'totalProducts', 'incomeMonth'].forEach(id => {
+                document.getElementById(id).textContent = 'Error';
+                toggleLoading(id, false);
+                });
+            }
+        }
+
+        function renderChart(data) {
+            const labels = data.map(d => d.order_date);
+            const omzet = data.map(d => d.total_revenue || 0);
+            const profit = data.map(d => d.gross_profit || 0);
+            const delivery = data.map(d => d.delivery_earnings || 0);
+
+            const ctx = document.getElementById('salesChart');
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            document.getElementById('chartSkeletonContainer').classList.add('hidden');
+            ctx.classList.remove('hidden');
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                labels,
+                datasets: [
+                    { 
+                        label: 'Omzet', 
+                        data: omzet,
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        tension: 0.4
+                    },
+                    { 
+                        label: 'Profit', 
+                        data: profit,
+                        borderColor: '#198754',
+                        backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                        tension: 0.4
+                    },
+                    { 
+                        label: 'Delivery', 
+                        data: delivery,
+                        borderColor: '#ffc107',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.4
+                    }
+                ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 2.5,
+                    plugins: {
+                        legend: {
+                        position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                            return 'Rp ' + formatRupiah(value);
+                            }
+                        }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadChartData(startDate, endDate) {
+            try {
+                document.getElementById('chartLoadingIndicator').classList.remove('hidden');
+
+                const response = await fetch(`/api/daily_order_summary?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+
+                renderChart(data);
+
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+                document.getElementById('chartSkeletonContainer').innerHTML = 
+                '<div class="alert alert-danger">Failed to load chart data</div>';
+            } finally {
+                document.getElementById('chartLoadingIndicator').classList.add('hidden');
+            }
+        }
+
+        async function updateChart() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('Start date must be before end date');
+                return;
+            }
+
+            const btn = document.getElementById('applyBtn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-small"></span> Loading...';
+            
+            try {
+                await loadChartData(startDate, endDate);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDates();
+
+            loadKPIData();
+
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            loadChartData(startDate, endDate);
+        });
+    </script>
+
+    
+<script>
+// ─── helpers ────────────────────────────────────────────────────────────────
+// const rupiah = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+const rupiah = n =>
+  'Rp ' + Math.floor(Number(n || 0)).toLocaleString('id-ID');
+
+// ─── Cash Ledger Chart ───────────────────────────────────────────────────────
+let cashChartInstance = null;
+
+async function loadCashLedgerChart() {
+    const loadingEl = document.getElementById('cashChartLoading');
+    loadingEl.classList.remove('hidden');
+
+    try {
+        const res = await fetch('/api/cash_ledger_last7days');
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+
+        // Summary pills
+        const totalIn  = data.reduce((s, d) => s + d.cash_in,  0);
+        const totalOut = data.reduce((s, d) => s + d.cash_out, 0);
+        const net      = totalIn - Math.abs(totalOut);
+
+        document.getElementById('cashTotalIn').textContent  = rupiah(totalIn);
+        document.getElementById('cashTotalOut').textContent = rupiah(totalOut);
+        const netEl = document.getElementById('cashNet');
+        netEl.textContent = rupiah(Math.abs(net));
+        netEl.className   = 'fw-bold ' + (net >= 0 ? 'text-success' : 'text-danger');
+
+        // Chart
+        const labels    = data.map(d => d.date);
+        const inData    = data.map(d => d.cash_in);
+        const outData   = data.map(d => d.cash_out);
+        const balData   = data.map(d => d.balance_after);
+
+        document.getElementById('cashChartSkeleton').classList.add('hidden');
+        const ctx = document.getElementById('cashLedgerChart');
+        ctx.classList.remove('hidden');
+
+        if (cashChartInstance) cashChartInstance.destroy();
+
+        cashChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Cash In',
+                        data: inData,
+                        backgroundColor: 'rgba(25,135,84,0.75)',
+                        borderRadius: 4,
+                        order: 2,
+                    },
+                    {
+                        label: 'Cash Out',
+                        data: outData,
+                        backgroundColor: 'rgba(220,53,69,0.75)',
+                        borderRadius: 4,
+                        order: 2,
+                    },
+                    {
+                        label: 'Balance',
+                        data: balData,
+                        type: 'line',
+                        borderColor: '#0d6efd',
+                        backgroundColor: 'rgba(13,110,253,0.1)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        tension: 0.4,
+                        yAxisID: 'yBalance',
+                        order: 1,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 3,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Cash In / Out' },
+                        ticks: { callback: v => 'Rp ' + formatRupiah(v) }
+                    },
+                    yBalance: {
+                        position: 'right',
+                        title: { display: true, text: 'Balance' },
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: v => 'Rp ' + formatRupiah(v) }
+                    }
+                }
+            }
+        });
+
+    } catch (err) {
+        console.error('Cash ledger chart error:', err);
+        document.getElementById('cashChartSkeleton').innerHTML =
+            '<div class="alert alert-danger">Failed to load cash ledger data.</div>';
+    } finally {
+        loadingEl.classList.add('hidden');
+    }
+}
+
+// ─── Most Bought Products Table ──────────────────────────────────────────────
+async function loadProductTable(startDate, endDate, limit) {
+    const loadingEl = document.getElementById('productTableLoading');
+    const skeleton  = document.getElementById('productTableSkeleton');
+    const container = document.getElementById('productTableContainer');
+    const emptyEl   = document.getElementById('productTableEmpty');
+
+    loadingEl.classList.remove('hidden');
+    skeleton.classList.remove('hidden');
+    container.classList.add('hidden');
+    emptyEl.classList.add('hidden');
+
+    try {
+        const url = `/api/most_bought_products?start_date=${startDate}&end_date=${endDate}&limit=${limit}`;
+        const res  = await fetch(url);
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+
+        skeleton.classList.add('hidden');
+
+        if (!data.length) {
+            emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        const maxQty = data[0].total_quantity;  // already sorted desc
+
+        const tbody = document.getElementById('productTableBody');
+        tbody.innerHTML = data.map((p, i) => {
+            const barPct   = maxQty > 0 ? (p.total_quantity / maxQty * 100).toFixed(1) : 0;
+            const profitCls = p.total_profit >= 0 ? 'text-success' : 'text-danger';
+            const profitPercent = p.total_revenue
+                    ? (p.total_profit / p.total_revenue * 100).toFixed(2)
+                    : '0.00';
+
+            return `
+            <tr>
+                <td class="text-muted">${i + 1}</td>
+                <td>
+                    <span class="fw-semibold">${escapeHtml(p.product_name)}</span>
+                    <small class="text-muted ms-1">(${escapeHtml(p.unit)})</small>
+                    <small class="ms-2 fw-semibold text-success">
+                        ${profitPercent}%
+                    </small>
+                </td>
+                <td class="text-end fw-bold">${Number(p.total_quantity).toLocaleString('id-ID')}</td>
+                <td class="text-end">${rupiah(p.total_revenue)}</td>
+                <td class="text-end ${profitCls}">${rupiah(p.total_profit)}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="progress flex-grow-1" style="height:8px">
+                            <div class="progress-bar bg-primary" style="width:${barPct}%"></div>
+                        </div>
+                        <small class="text-muted" style="min-width:36px">${barPct}%</small>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        container.classList.remove('hidden');
+
+    } catch (err) {
+        console.error('Product table error:', err);
+        skeleton.innerHTML =
+            '<div class="alert alert-danger">Failed to load product data.</div>';
+    } finally {
+        loadingEl.classList.add('hidden');
+    }
+}
+
+async function updateProductTable() {
+    const startDate = document.getElementById('productStartDate').value;
+    const endDate   = document.getElementById('productEndDate').value;
+    const limit     = document.getElementById('productLimit').value;
+
+    if (!startDate || !endDate) {
+        alert('Please select both start and end dates');
+        return;
+    }
+    if (new Date(startDate) > new Date(endDate)) {
+        alert('Start date must be before end date');
+        return;
+    }
+
+    const btn = document.getElementById('productApplyBtn');
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="spinner-small"></span> Loading…';
+
+    try {
+        await loadProductTable(startDate, endDate, limit);
+    } finally {
+        btn.disabled  = false;
+        btn.innerHTML = 'Apply';
+    }
+}
+
+// ─── Utility ─────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+// Piggyback on your existing DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function () {
+    // Sync product date pickers with the main chart date range
+    const today     = new Date();
+    const thirtyAgo = new Date();
+    thirtyAgo.setDate(today.getDate() - 30);
+
+    document.getElementById('productEndDate').valueAsDate   = today;
+    document.getElementById('productStartDate').valueAsDate = thirtyAgo;
+
+    const sd = document.getElementById('productStartDate').value;
+    const ed = document.getElementById('productEndDate').value;
+    const lm = document.getElementById('productLimit').value;
+
+    loadCashLedgerChart();
+    loadProductTable(sd, ed, lm);
+});
+</script>
+{% endblock %}

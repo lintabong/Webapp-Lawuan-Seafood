@@ -60,3 +60,8 @@
 - Changed FE: order list to table, not card anymore
 - Created new API: Order items
 - Simpler list order in order_repositories
+
+1.15.0
+- Add queries on sql folder
+- Add details on services/order_service.py func `update_order_service`
+- Add new route: financial_report

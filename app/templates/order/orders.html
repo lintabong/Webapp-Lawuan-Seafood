@@ -28,6 +28,31 @@
             max-height: 90vh;
             overflow-y: auto;
         }
+
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-paid {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status-picked {
+            background-color: #cff4fc;
+            color: #055160;
+        }
+
+        .status-delivered {
+            background-color: #e2e3e5;
+            color: #41464b;
+        }
+
+        .status-cancelled {
+            background-color: #f8d7da;
+            color: #842029;
+        }
     </style>
 
     <div class="card p-3 mb-4">
@@ -176,9 +201,9 @@
                 if (!response.ok) throw new Error('Failed to update status');
 
                 const card = selectElement.closest('.card');
-                const badge = card.querySelector('.order-status-badge');
-                badge.className = `badge ${getStatusBadge(newStatus)} order-status-badge`;
-                badge.textContent = getStatusText(newStatus);
+                // const badge = card.querySelector('.order-status-badge');
+                // badge.className = `badge ${getStatusBadge(newStatus)} order-status-badge`;
+                // badge.textContent = getStatusText(newStatus);
 
                 showToast('Status updated successfully', 'success');
 
@@ -433,9 +458,7 @@
 
                     return `
                         <tr id="order-${order.id}">
-                            <td><img src="/static/icons/${order.delivery_type === 'delivery' ? 'courier.png' : 'box.png'}"
-                                width="16" height="16"
-                                alt="${order.delivery_type}"> ${order.id}
+                            <td>${order.id}
                             </td>
                             <td>${formatDate(order.order_date)}</td>
                             <td>
@@ -448,9 +471,11 @@
                                 </strong>
                             </td>
                             <td>
-                                <select class="form-select form-select-sm"
+                                <select class="form-select form-select-sm status-${order.status.replace(' ', '-')}"
                                     onchange="updateOrderStatus(${order.id}, this.value, this)"
-                                    ${order.status === 'cancelled' || order.status === 'delivered' ? 'disabled' : ''}>
+                                    ${order.status === 'cancelled' || 
+                                    order.status === 'delivered' ||
+                                    order.status === 'picked up' ? 'disabled' : ''}>
 
                                     <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
                                     <option value="paid" ${order.status === 'paid' ? 'selected' : ''}>Paid</option>
@@ -471,6 +496,14 @@
                                         Edit
                                     </a>
                                 ` : ''}
+
+                                ${order.status === 'delivered' ? `
+                                    <a href="/orders/edit?id=${order.id}" 
+                                    class="btn btn-sm btn-danger ms-1"
+                                    onclick="return confirmDelete()">
+                                        Del
+                                    </a>
+                                ` : ''}
                             </td>
                         </tr>
                     `;
@@ -487,6 +520,10 @@
                 showToast('Failed to load orders', 'error');
             }
         }
+
+        function confirmDelete() {
+    return confirm("Are you sure you want to edit/delete this order?");
+}
 
         document.addEventListener('DOMContentLoaded', loadOrders);
 

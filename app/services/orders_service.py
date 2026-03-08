@@ -78,15 +78,15 @@ def create_order_service(
     }
 
 def update_order_service(
-        user_id,
-        order_id,
-        customer_id,
-        delivery_type,
-        delivery_price,
-        items,
-        items_to_delete,
-        status,
-        order_date
+        user_id: str,
+        order_id=1,
+        customer_id=1,
+        delivery_type='delivery',
+        delivery_price=0,
+        items=[],
+        items_to_delete=[],
+        status='pending',
+        order_date=date_utils.create_now_gmt()
     ):
     order = orders_repo.get_order_by_id(order_id)
     if not order:
@@ -94,7 +94,7 @@ def update_order_service(
 
     if order['status'] != 'pending':
         raise exceptions.ValidationError('Only pending orders editable')
-    
+
     auth()
     result = supabase.rpc('update_order_full', {
         'p_order_id': order_id,
@@ -110,9 +110,9 @@ def update_order_service(
 
     return {
         'success': True,
-        'order_id': result['order_id'],
-        'transaction_id': result['transaction_id'],
-        'cash_balance': result['current_balance']
+        'order_id': result['out_order_id'],
+        'transaction_id': result['out_transaction_id'],
+        'cash_balance': result['out_current_balance']
     }
 
 def update_order_status_service(user_id, order_id, new_status):

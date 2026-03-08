@@ -82,7 +82,7 @@ begin
     end loop;
 
     -- Deduct stock (negative allowed)
-    if p_status in ('paid', 'delivered', 'picked up') then
+    if p_status in ('delivered', 'picked up') then
         for v_item in select * from jsonb_array_elements(p_items)
         loop
             update products

@@ -40,7 +40,7 @@
                 <div class="col-md-6">
                     <label class="form-label fw-bold">Delivery Price</label>
                     <input type="number" class="form-control" id="deliveryPrice" 
-                        value="0" min="0" step="1000" onchange="calculateTotal()">
+                        value="0" min="0" step="1" onchange="calculateTotal()">
                 </div>
             </div>
 
@@ -50,7 +50,6 @@
                     <label class="form-label fw-bold mb-0">
                         Order Items <span class="text-danger">*</span>
                     </label>
-                    
                 </div>
             
                 <div id="orderItems"></div>
@@ -90,6 +89,7 @@
                 <select class="form-select" id="orderStatus">
                     <option value="pending">Pending</option>
                     <option value="paid">Paid</option>
+                    <option value="picked up">Picked Up</option>
                     <option value="delivered">Delivered</option>
                 </select>
             </div>
@@ -164,61 +164,61 @@
             itemCounter++;
             const itemHtml = `
                 <div class="card mb-3" id="item-${itemCounter}">
-                <div class="card-body">
-                    <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label small">Product</label>
-                        <select class="form-select form-select-sm product-select" 
-                                data-item="${itemCounter}" required
-                                onchange="updateItemPrices(${itemCounter})">
-                        <option value="">Select product...</option>
-                        ${products.map(p => `
-                            <option value="${p.id}" 
-                                    data-buy-price="${p.buy_price}" 
-                                    data-sell-price="${p.sell_price}"
-                                    data-unit="${p.unit}"
-                                    data-stock="${p.stock}">
-                            ${p.name} (Stock: ${p.stock} ${p.unit})
-                            </option>
-                        `).join('')}
-                        </select>
+                    <div class="card-body">
+                        <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label small">Product</label>
+                            <select class="form-select form-select-sm product-select" 
+                                    data-item="${itemCounter}" required
+                                    onchange="updateItemPrices(${itemCounter})">
+                            <option value="">Select product...</option>
+                            ${products.map(p => `
+                                <option value="${p.id}" 
+                                        data-buy-price="${p.buy_price}" 
+                                        data-sell-price="${p.sell_price}"
+                                        data-unit="${p.unit}"
+                                        data-stock="${p.stock}">
+                                ${p.name} (Stock: ${p.stock} ${p.unit})
+                                </option>
+                            `).join('')}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-1">
+                            <label class="form-label small">Quantity</label>
+                            <input type="number" class="form-control form-control-sm quantity-input" 
+                                data-item="${itemCounter}" min="0.01" step="0.01" value="1" required
+                                oninput="updateItemSubtotal(${itemCounter})">
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label small">Buy Price</label>
+                            <input type="number" class="form-control form-control-sm buy-price" 
+                                data-item="${itemCounter}" readonly>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label small">Sell Price</label>
+                            <input type="number" class="form-control form-control-sm sell-price" 
+                                data-item="${itemCounter}" min="0" step="1000" required
+                                oninput="updateItemSubtotal(${itemCounter})">
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label small">Subtotal</label>
+                            <input type="text" class="form-control form-control-sm item-subtotal" 
+                                data-item="${itemCounter}" readonly value="Rp 0">
+                        </div>
+                        
+                        <div class="col-md-1">
+                            <label class="form-label small">&nbsp;</label>
+                            <button type="button" class="btn btn-sm btn-danger w-100" 
+                                    onclick="removeOrderItem(${itemCounter})">
+                            <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        </div>
                     </div>
-                    
-                    <div class="col-md-1">
-                        <label class="form-label small">Quantity</label>
-                        <input type="number" class="form-control form-control-sm quantity-input" 
-                            data-item="${itemCounter}" min="0.01" step="0.01" value="1" required
-                            oninput="updateItemSubtotal(${itemCounter})">
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <label class="form-label small">Buy Price</label>
-                        <input type="number" class="form-control form-control-sm buy-price" 
-                            data-item="${itemCounter}" readonly>
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <label class="form-label small">Sell Price</label>
-                        <input type="number" class="form-control form-control-sm sell-price" 
-                            data-item="${itemCounter}" min="0" step="1000" required
-                            oninput="updateItemSubtotal(${itemCounter})">
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <label class="form-label small">Subtotal</label>
-                        <input type="text" class="form-control form-control-sm item-subtotal" 
-                            data-item="${itemCounter}" readonly value="Rp 0">
-                    </div>
-                    
-                    <div class="col-md-1">
-                        <label class="form-label small">&nbsp;</label>
-                        <button type="button" class="btn btn-sm btn-danger w-100" 
-                                onclick="removeOrderItem(${itemCounter})">
-                        <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                    </div>
-                </div>
                 </div>
             `;
             
