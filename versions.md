@@ -65,3 +65,7 @@
 - Add queries on sql folder
 - Add details on services/order_service.py func `update_order_service`
 - Add new route: financial_report
+
+2.1.0
+- Add product variant on product query
+- Change delivery fee step from 1000 to 1 (FE)

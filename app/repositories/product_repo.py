@@ -2,14 +2,13 @@
 from typing import List, Optional
 from app.repositories.supabase_repo import auth
 from app.lib.supabase_client import supabase
-from app.models.product import Product
 
 
 def list_product(is_active='true', search=None):
     auth()
 
     query = supabase.table('products') \
-        .select('*') \
+        .select('*, product_variants(*)') \
         .order('name')
 
     if is_active and is_active != 'all':
@@ -19,8 +18,8 @@ def list_product(is_active='true', search=None):
         query = query.ilike('name', f'%{search}%')
 
     response = query.execute()
-    
-    return [Product.from_dict(row) for row in response.data]
+
+    return response.data
 
 def insert_product(
     name: str,
