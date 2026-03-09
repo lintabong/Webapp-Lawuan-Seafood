@@ -112,6 +112,8 @@ def get_order_by_id(order_id):
             order_items(
                 id,
                 product_id,
+                product_variant_id,
+                product_variants(id, name, buy_price, sell_price),
                 quantity,
                 buy_price,
                 sell_price,

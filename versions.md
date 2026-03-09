@@ -69,3 +69,4 @@
 2.1.0
 - Add product variant on product query
 - Change delivery fee step from 1000 to 1 (FE)
+- Add product variant on order query

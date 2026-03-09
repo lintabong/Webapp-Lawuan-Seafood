@@ -214,6 +214,10 @@ def show_order(order_id):
             formatted_order['items'].append({
                 'id': item['id'],
                 'product_id': item['product_id'],
+                'product_variant_id': item['product_variants']['id'],
+                'product_variant_name': item['product_variants']['name'],
+                'product_variant_buy_price': item['product_variants']['buy_price'],
+                'product_variant_sell_price': item['product_variants']['sell_price'],
                 'quantity': float(item['quantity']),
                 'buy_price': float(item['buy_price']),
                 'sell_price': float(item['sell_price']),
