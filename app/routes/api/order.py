@@ -161,23 +161,13 @@ def update_order(order_id):
             status=status,
             order_date=order_date
         )
-
-        return jsonify({
-            'success': True,
-            'data': result
-        }), 200
+        return jsonify({'success': True, 'data': result}), 200
 
     except ValueError as e:
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 400
+        return jsonify({'success': False, 'message': str(e)}), 400
 
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': 'Internal server error'
-        }), 500
+        return jsonify({'success': False, 'message': 'Internal server error'}), 500
 
 
 @orders_api_bp.route('/orders/<int:order_id>/status', methods=['PUT'])

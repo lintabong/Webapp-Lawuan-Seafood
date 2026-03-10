@@ -152,7 +152,7 @@
                 products = await response.json();
                 
                 document.getElementById('itemsLoading').classList.add('hidden');
-                addOrderItem(); // Add first item
+                addOrderItem();
                 
             } catch (error) {
                 console.error('Error loading products:', error);
@@ -163,66 +163,124 @@
         function addOrderItem() {
             itemCounter++;
             const itemHtml = `
-                <div class="card mb-3" id="item-${itemCounter}">
-                    <div class="card-body">
-                        <div class="row g-3">
-                        <div class="col-md-4">
+            <div class="card mb-3" id="item-${itemCounter}">
+                <div class="card-body">
+                    <div class="row g-3">
+
+                        <!-- PRODUCT -->
+                        <div class="col-md-2">
                             <label class="form-label small">Product</label>
-                            <select class="form-select form-select-sm product-select" 
-                                    data-item="${itemCounter}" required
-                                    onchange="updateItemPrices(${itemCounter})">
-                            <option value="">Select product...</option>
-                            ${products.map(p => `
-                                <option value="${p.id}" 
-                                        data-buy-price="${p.buy_price}" 
-                                        data-sell-price="${p.sell_price}"
-                                        data-unit="${p.unit}"
-                                        data-stock="${p.stock}">
-                                ${p.name} (Stock: ${p.stock} ${p.unit})
-                                </option>
-                            `).join('')}
+                            <select class="form-select form-select-sm"
+                                onchange="updateVariants(${itemCounter})"
+                                id="product-${itemCounter}">
+                                <option value="">Select product...</option>
+                                ${products.map(p => `
+                                    <option value="${p.id}">
+                                        ${p.name}
+                                    </option>
+                                `).join('')}
                             </select>
                         </div>
-                        
+
+                        <!-- VARIANT -->
+                        <div class="col-md-2">
+                            <label class="form-label small">Variant</label>
+                            <select class="form-select form-select-sm"
+                                onchange="updateVariantPrices(${itemCounter})"
+                                id="variant-${itemCounter}">
+                                <option value="">Select variant...</option>
+                            </select>
+                        </div>
+
+                        <!-- QTY -->
                         <div class="col-md-1">
-                            <label class="form-label small">Quantity</label>
-                            <input type="number" class="form-control form-control-sm quantity-input" 
-                                data-item="${itemCounter}" min="0.01" step="0.01" value="1" required
+                            <label class="form-label small">Qty</label>
+                            <input type="number" class="form-control form-control-sm"
+                                id="qty-${itemCounter}"
+                                min="0.01" step="0.01" value="1"
                                 oninput="updateItemSubtotal(${itemCounter})">
                         </div>
-                        
+
+                        <!-- BUY -->
                         <div class="col-md-2">
-                            <label class="form-label small">Buy Price</label>
-                            <input type="number" class="form-control form-control-sm buy-price" 
-                                data-item="${itemCounter}" readonly>
+                            <label class="form-label small">Buy</label>
+                            <input type="number" class="form-control form-control-sm"
+                                id="buy-${itemCounter}" readonly>
                         </div>
-                        
+
+                        <!-- SELL -->
                         <div class="col-md-2">
-                            <label class="form-label small">Sell Price</label>
-                            <input type="number" class="form-control form-control-sm sell-price" 
-                                data-item="${itemCounter}" min="0" step="1000" required
+                            <label class="form-label small">Sell</label>
+                            <input type="number" class="form-control form-control-sm"
+                                id="sell-${itemCounter}"
                                 oninput="updateItemSubtotal(${itemCounter})">
                         </div>
-                        
-                        <div class="col-md-2">
+
+                        <div class="col-md-1">
                             <label class="form-label small">Subtotal</label>
-                            <input type="text" class="form-control form-control-sm item-subtotal" 
-                                data-item="${itemCounter}" readonly value="Rp 0">
+                            <input type="text" class="form-control form-control-sm"
+                                id="subtotal-${itemCounter}" readonly>
                         </div>
-                        
-                        <div class="col-md-1">
-                            <label class="form-label small">&nbsp;</label>
-                            <button type="button" class="btn btn-sm btn-danger w-100" 
-                                    onclick="removeOrderItem(${itemCounter})">
-                            <i class="bi bi-trash"></i>
+
+                        <div class="col-md-12 text-end">
+                            <button class="btn btn-sm btn-danger"
+                                onclick="removeOrderItem(${itemCounter})">
+                                Remove
                             </button>
-                        </div>
                         </div>
                     </div>
                 </div>
+            </div>
             `;
-            
+
             document.getElementById('orderItems').insertAdjacentHTML('beforeend', itemHtml);
+        }
+
+        function updateVariants(itemId) {
+            const productId = document.getElementById(`product-${itemId}`).value;
+            const variantSelect = document.getElementById(`variant-${itemId}`);
+
+            variantSelect.innerHTML = '<option value="">Select variant...</option>';
+
+            const product = products.find(p => p.id == productId);
+
+            if (!product) return;
+
+            product.product_variants.forEach(v => {
+
+                const option = document.createElement("option");
+
+                option.value = v.id;
+                option.textContent =
+                    `${v.name} (Stock: ${v.stock} ${v.unit})`;
+
+                option.dataset.buy = v.buy_price;
+                option.dataset.sell = v.sell_price;
+                option.dataset.stock = v.stock;
+
+                variantSelect.appendChild(option);
+
+            });
+
+        }
+
+        function updateVariantPrices(itemId) {
+            const variantSelect =
+                document.getElementById(`variant-${itemId}`);
+
+            const selected =
+                variantSelect.options[variantSelect.selectedIndex];
+
+            if (!selected.dataset.sell) return;
+
+            document.getElementById(`buy-${itemId}`).value =
+                selected.dataset.buy;
+
+            document.getElementById(`sell-${itemId}`).value =
+                selected.dataset.sell;
+
+            updateItemSubtotal(itemId);
+
         }
 
         function updateItemPrices(itemId) {
@@ -243,11 +301,11 @@
 
         function updateItemSubtotal(itemId) {
             const item = document.querySelector(`#item-${itemId}`);
-            const quantity = parseFloat(item.querySelector('.quantity-input').value) || 0;
-            const sellPrice = parseFloat(item.querySelector('.sell-price').value) || 0;
+            const quantity = parseFloat(item.querySelector(`#qty-${itemId}`).value) || 0;
+            const sellPrice = parseFloat(item.querySelector(`#sell-${itemId}`).value) || 0;
             const subtotal = quantity * sellPrice;
             
-            item.querySelector('.item-subtotal').value = 'Rp ' + formatRupiah(subtotal);
+            item.querySelector(`#subtotal-${itemId}`).value = 'Rp ' + formatRupiah(subtotal);
             calculateTotal();
         }
 
@@ -265,8 +323,10 @@
             let subtotal = 0;
             
             document.querySelectorAll('#orderItems .card').forEach(item => {
-                const quantity = parseFloat(item.querySelector('.quantity-input').value) || 0;
-                const sellPrice = parseFloat(item.querySelector('.sell-price').value) || 0;
+                const itemId = item.id.split('-')[1];
+
+                const quantity = parseFloat(item.querySelector(`#qty-${itemId}`).value) || 0;
+                const sellPrice = parseFloat(item.querySelector(`#sell-${itemId}`).value) || 0;
                 subtotal += quantity * sellPrice;
             });
             
@@ -280,81 +340,97 @@
 
         // Form submission
         document.getElementById('orderForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const items = [];
-        const orderItems = document.querySelectorAll('#orderItems .card');
-        
-        let valid = true;
-        orderItems.forEach(item => {
-            const productSelect = item.querySelector('.product-select');
-            const productId = productSelect.value;
-            
-            if (!productId) {
-            valid = false;
-            return;
-            }
-            
-            items.push({
-            product_id: parseInt(productId),
-            quantity: parseFloat(item.querySelector('.quantity-input').value),
-            buy_price: parseFloat(item.querySelector('.buy-price').value),
-            sell_price: parseFloat(item.querySelector('.sell-price').value)
+            e.preventDefault();
+
+            const items = [];
+            const orderItems = document.querySelectorAll('#orderItems .card');
+
+            let valid = true;
+
+            orderItems.forEach(item => {
+
+                const productId = item.querySelector('[id^="product-"]').value;
+                const variantId = item.querySelector('[id^="variant-"]').value;
+
+                if (!productId || !variantId) {
+                    valid = false;
+                    return;
+                }
+
+                const quantity =
+                    parseFloat(item.querySelector('[id^="qty-"]').value) || 0;
+
+                const buyPrice =
+                    parseFloat(item.querySelector('[id^="buy-"]').value) || 0;
+
+                const sellPrice =
+                    parseFloat(item.querySelector('[id^="sell-"]').value) || 0;
+
+                items.push({
+                    product_id: parseInt(productId),
+                    product_variant_id: parseInt(variantId),
+                    quantity: quantity,
+                    buy_price: buyPrice,
+                    sell_price: sellPrice
+                });
+
             });
-        });
-        
-        if (!valid) {
-            showToast('Please select a product for all items', 'error');
-            return;
-        }
-        
-        const orderData = {
-            order_date: document.getElementById('orderDate').value,
-            customer_id: parseInt(document.getElementById('customerId').value),
-            delivery_type: document.getElementById('deliveryType').value,
-            delivery_price: parseFloat(document.getElementById('deliveryPrice').value) || 0,
-            status: document.getElementById('orderStatus').value,
-            items: items
-        };
-        
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-small"></span> Creating...';
-        
-        try {
-            const response = await fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(orderData)
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok && data.success) {
-            showToast('Order created successfully!', 'success');
-            setTimeout(() => {
-                window.location.href = '/my-orders';
-            }, 1000);
-            } else {
-            throw new Error(data.error || 'Failed to create order');
+
+            if (!valid) {
+                showToast('Please select product and variant', 'error');
+                return;
             }
-            
-        } catch (error) {
-            console.error('Error:', error);
-            showToast(error.message, 'error');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Create Order';
-        }
+
+            const orderData = {
+                order_date: document.getElementById('orderDate').value,
+                customer_id: parseInt(document.getElementById('customerId').value),
+                delivery_type: document.getElementById('deliveryType').value,
+                delivery_price: parseFloat(document.getElementById('deliveryPrice').value) || 0,
+                status: document.getElementById('orderStatus').value,
+                items: items
+            };
+            console.log(orderData);
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-small"></span> Creating...';
+
+            try {
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData)
+                });
+
+                const data = await response.json();
+
+                console.log(response);
+                console.log(data);
+
+                if (response.ok && data.success) {
+                    showToast('Order created successfully!', 'success');
+
+                    setTimeout(() => {
+                        window.location.href = '/my-orders';
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || 'Failed to create order');
+                }
+
+            } catch (error) {
+
+                showToast(error.message, 'error');
+
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-circle"></i> Create Order';
+
+            }
         });
 
-            // Initialize
-            document.addEventListener('DOMContentLoaded', function() {
-            // Set current date/time
+        document.addEventListener('DOMContentLoaded', function() {
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('orderDate').value = now.toISOString().slice(0, 16);
-        
-            // Load data
+
             loadCustomers();
             loadProducts();
         });

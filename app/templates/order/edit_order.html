@@ -50,7 +50,6 @@
                     <label class="form-label fw-bold mb-0">
                         Order Items <span class="text-danger">*</span>
                     </label>
-                    
                 </div>
             
                 <div id="orderItems"></div>
@@ -153,7 +152,6 @@
             try {
                 const response = await fetch('/api/products');
                 products = await response.json();
-                
             } catch (error) {
                 console.error('Error loading products:', error);
                 showToast('Failed to load products', 'error');
@@ -162,7 +160,6 @@
 
         async function loadOrderData() {
             try {
-                // Get order ID from URL
                 const urlParams = new URLSearchParams(window.location.search);
                 orderId = urlParams.get('id');
                 
@@ -173,16 +170,12 @@
                 }
 
                 const response = await fetch(`/api/orders/${orderId}`);
-                if (!response.ok) {
-                    throw new Error('Order not found');
-                }
+                if (!response.ok) throw new Error('Order not found');
                 
                 const order = await response.json();
                 
-                // Set order number in title
                 document.getElementById('orderNumber').textContent = order.id;
                 
-                // Populate form fields
                 const orderDate = new Date(order.order_date);
                 orderDate.setMinutes(orderDate.getMinutes() - orderDate.getTimezoneOffset());
                 document.getElementById('orderDate').value = orderDate.toISOString().slice(0, 16);
@@ -192,7 +185,6 @@
                 document.getElementById('deliveryPrice').value = order.delivery_price || 0;
                 document.getElementById('orderStatus').value = order.status;
                 
-                // Load order items
                 order.items.forEach(item => {
                     addOrderItem(item);
                     existingItems.push(item.id);
@@ -204,99 +196,153 @@
             } catch (error) {
                 console.error('Error loading order:', error);
                 showToast('Failed to load order data', 'error');
-                setTimeout(() => {
-                    window.location.href = '/my-orders';
-                }, 2000);
+                setTimeout(() => { window.location.href = '/my-orders'; }, 2000);
+            }
+        }
+
+        function getProductVariants(productId) {
+            const product = products.find(p => p.id === parseInt(productId));
+            return product ? (product.product_variants || []) : [];
+        }
+
+        function populateVariantSelect(itemId, productId, selectedVariantId = null) {
+            const variantSelect = document.getElementById(`variant-${itemId}`);
+            const variants = getProductVariants(productId);
+
+            if (variants.length === 0) {
+                variantSelect.innerHTML = '<option value="">No variants</option>';
+                variantSelect.disabled = true;
+                return;
+            }
+
+            // Hide variant column if only one "default" variant
+            const hasOnlyDefault = variants.length === 1 && variants[0].name === 'default';
+
+            variantSelect.disabled = false;
+            variantSelect.innerHTML = variants.map(v => `
+                <option value="${v.id}"
+                    data-buy-price="${v.buy_price}"
+                    data-sell-price="${v.sell_price}"
+                    data-stock="${v.stock}"
+                    data-unit="${v.unit}"
+                    ${selectedVariantId && v.id === parseInt(selectedVariantId) ? 'selected' : ''}
+                    ${!selectedVariantId && v.name === 'default' ? 'selected' : ''}>
+                    ${v.name}${v.stock !== undefined ? ' (Stock: ' + v.stock + ' ' + v.unit + ')' : ''}
+                </option>
+            `).join('');
+
+            // Toggle variant column visibility
+            const variantCol = document.getElementById(`variant-col-${itemId}`);
+            if (variantCol) {
+                variantCol.style.display = hasOnlyDefault ? 'none' : '';
             }
         }
 
         function addOrderItem(existingItem = null) {
             itemCounter++;
+            const currentId = itemCounter;
+
             const itemHtml = `
-                <div class="card mb-3" id="item-${itemCounter}" data-item-id="${existingItem ? existingItem.id : ''}">
-                <div class="card-body">
-                    <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label small">Product</label>
-                        <select class="form-select form-select-sm product-select" 
-                                data-item="${itemCounter}" required
-                                onchange="updateItemPrices(${itemCounter})">
-                        <option value="">Select product...</option>
-                        ${products.map(p => `
-                            <option value="${p.id}" 
-                                    data-buy-price="${p.buy_price}" 
-                                    data-sell-price="${p.sell_price}"
-                                    data-unit="${p.unit}"
-                                    data-stock="${p.stock}"
-                                    ${existingItem && existingItem.product_id === p.id ? 'selected' : ''}>
-                            ${p.name} (Stock: ${p.stock} ${p.unit})
-                            </option>
-                        `).join('')}
-                        </select>
+                <div class="card mb-3" id="item-${currentId}" data-item-id="${existingItem ? existingItem.id : ''}">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-2">
+                                <label class="form-label small">Product</label>
+                                <select class="form-select form-select-sm product-select"
+                                        data-item="${currentId}" required
+                                        onchange="updateItemPrices(${currentId})">
+                                    <option value="">Select product...</option>
+                                    ${products.map(p => `
+                                        <option value="${p.id}"
+                                            ${existingItem && existingItem.product_id === p.id ? 'selected' : ''}>
+                                            ${p.name}
+                                        </option>
+                                    `).join('')}
+                                </select>
+                            </div>
+
+                            <div class="col-md-2" id="variant-col-${currentId}">
+                                <label class="form-label small">Variant</label>
+                                <select class="form-select form-select-sm variant-select"
+                                        id="variant-${currentId}"
+                                        data-item="${currentId}"
+                                        onchange="updateVariantPrices(${currentId})">
+                                    <option value="">Select variant...</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-1">
+                                <label class="form-label small">Qty</label>
+                                <input type="number" class="form-control form-control-sm quantity-input"
+                                    data-item="${currentId}" min="0.01" step="0.01"
+                                    value="${existingItem ? existingItem.quantity : 1}" required
+                                    oninput="updateItemSubtotal(${currentId})">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small">Buy Price</label>
+                                <input type="number" class="form-control form-control-sm buy-price"
+                                    data-item="${currentId}"
+                                    value="${existingItem ? existingItem.buy_price : ''}" readonly>
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small">Sell Price</label>
+                                <input type="number" class="form-control form-control-sm sell-price"
+                                    data-item="${currentId}" min="0" step="1"
+                                    value="${existingItem ? existingItem.sell_price : ''}" required
+                                    oninput="updateItemSubtotal(${currentId})">
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label small">Subtotal</label>
+                                <input type="text" class="form-control form-control-sm item-subtotal"
+                                    data-item="${currentId}" readonly value="Rp 0">
+                            </div>
+
+                            <div class="col-md-1">
+                                <label class="form-label small">&nbsp;</label>
+                                <button type="button" class="btn btn-sm btn-danger w-100"
+                                        onclick="removeOrderItem(${currentId})">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="col-md-1">
-                        <label class="form-label small">Quantity</label>
-                        <input type="number" class="form-control form-control-sm quantity-input" 
-                            data-item="${itemCounter}" min="0.01" step="0.01" 
-                            value="${existingItem ? existingItem.quantity : 1}" required
-                            oninput="updateItemSubtotal(${itemCounter})">
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <label class="form-label small">Buy Price</label>
-                        <input type="number" class="form-control form-control-sm buy-price" 
-                            data-item="${itemCounter}" 
-                            value="${existingItem ? existingItem.buy_price : ''}" readonly>
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <label class="form-label small">Sell Price</label>
-                        <input type="number" class="form-control form-control-sm sell-price" 
-                            data-item="${itemCounter}" min="0" step="1000" 
-                            value="${existingItem ? existingItem.sell_price : ''}" required
-                            oninput="updateItemSubtotal(${itemCounter})">
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <label class="form-label small">Subtotal</label>
-                        <input type="text" class="form-control form-control-sm item-subtotal" 
-                            data-item="${itemCounter}" readonly value="Rp 0">
-                    </div>
-                    
-                    <div class="col-md-1">
-                        <label class="form-label small">&nbsp;</label>
-                        <button type="button" class="btn btn-sm btn-danger w-100" 
-                                onclick="removeOrderItem(${itemCounter})">
-                        <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                    </div>
-                </div>
                 </div>
             `;
-            
+
             document.getElementById('orderItems').insertAdjacentHTML('beforeend', itemHtml);
 
-            if (existingItem) {
-                updateItemSubtotal(itemCounter);
+            if (existingItem && existingItem.product_id) {
+                populateVariantSelect(currentId, existingItem.product_id, existingItem.product_variant_id);
+                updateItemSubtotal(currentId);
             }
         }
 
         function updateItemPrices(itemId) {
             const item = document.querySelector(`#item-${itemId}`);
             const select = item.querySelector('.product-select');
-            const option = select.options[select.selectedIndex];
-            
-            if (option.value) {
-                const buyPrice = option.getAttribute('data-buy-price');
-                const sellPrice = option.getAttribute('data-sell-price');
-                
-                item.querySelector('.buy-price').value = buyPrice;
-                item.querySelector('.sell-price').value = sellPrice;
-                
-                updateItemSubtotal(itemId);
+            const productId = select.value;
+
+            if (!productId) return;
+
+            populateVariantSelect(itemId, productId, null);
+
+            updateVariantPrices(itemId);
+        }
+
+        function updateVariantPrices(itemId) {
+            const item = document.querySelector(`#item-${itemId}`);
+            const variantSelect = document.getElementById(`variant-${itemId}`);
+            const option = variantSelect.options[variantSelect.selectedIndex];
+
+            if (option && option.value) {
+                item.querySelector('.buy-price').value = option.getAttribute('data-buy-price');
+                item.querySelector('.sell-price').value = option.getAttribute('data-sell-price');
             }
+
+            updateItemSubtotal(itemId);
         }
 
         function updateItemSubtotal(itemId) {
@@ -348,20 +394,23 @@
             orderItems.forEach(item => {
                 const productSelect = item.querySelector('.product-select');
                 const productId = productSelect.value;
+                const variantSelect = item.querySelector('.variant-select');
+                const variantId = variantSelect ? variantSelect.value : null;
                 
                 if (!productId) {
                     valid = false;
                     return;
                 }
+                console.log(item);
                 
                 const itemData = {
                     product_id: parseInt(productId),
+                    product_variant_id: variantId ? parseInt(variantId) : null,
                     quantity: parseFloat(item.querySelector('.quantity-input').value),
                     buy_price: parseFloat(item.querySelector('.buy-price').value),
                     sell_price: parseFloat(item.querySelector('.sell-price').value)
                 };
                 
-                // Include item ID if it exists (for existing items)
                 const existingItemId = item.getAttribute('data-item-id');
                 if (existingItemId) {
                     itemData.id = parseInt(existingItemId);
@@ -375,7 +424,6 @@
                 return;
             }
             
-            // Find deleted items
             const currentItemIds = items.filter(i => i.id).map(i => i.id);
             itemsToDelete = existingItems.filter(id => !currentItemIds.includes(id));
             
@@ -404,9 +452,7 @@
                 
                 if (response.ok && data.success) {
                     showToast('Order updated successfully!', 'success');
-                    setTimeout(() => {
-                        window.location.href = '/my-orders';
-                    }, 1000);
+                    setTimeout(() => { window.location.href = '/my-orders'; }, 1000);
                 } else {
                     throw new Error(data.error || 'Failed to update order');
                 }
@@ -421,11 +467,8 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
-            // Load products first
             await loadProducts();
-            // Load customers
             await loadCustomers();
-            // Load order data
             await loadOrderData();
         });
     </script>

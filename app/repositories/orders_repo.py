@@ -1,10 +1,7 @@
 
-from datetime import datetime
-
 from app import log
 from app.repositories.supabase_repo import auth
 from app.lib.supabase_client import supabase
-from app.models.order import Order
 
 logger = log.get_logger('ORDERS_REPO')
 
@@ -37,6 +34,9 @@ def list_orders(
         ),
         order_items(
             id,
+            product_id,
+            product_variant_id,
+            product_variants(id, name, unit, buy_price, sell_price),
             quantity,
             sell_price,
             products(name, unit),

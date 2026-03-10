@@ -337,6 +337,7 @@
 
         function openOrderDetail(orderId) {
             const order = ordersCache[orderId];
+            console.log(order);
             if (!order) return;
 
             const modal = document.getElementById('orderDetailModal');
@@ -373,8 +374,21 @@
                         <tbody>
                             ${order.order_items.map(item => `
                                 <tr>
-                                    <td>${item.products.name}</td>
-                                    <td class="text-center">${item.quantity} ${item.products.unit}</td>
+                                    <td>
+                                        ${item.products.name}
+                                        ${item.product_variants && item.product_variants.name !== 'default'
+                                            ? `<br><small class="text-muted">${item.product_variants.name}</small>`
+                                            : ''}
+                                    </td>
+
+                                    <td class="text-center">
+                                        ${item.quantity}
+                                        ${
+                                            item.product_variants && item.product_variants.name !== 'default'
+                                            ? item.product_variants.unit
+                                            : item.products.unit
+                                        }
+                                    </td>
                                     <td class="text-end">Rp ${formatRupiah(item.sell_price)}</td>
                                     <td class="text-end">
                                         Rp ${formatRupiah(item.quantity * item.sell_price)}
@@ -458,8 +472,7 @@
 
                     return `
                         <tr id="order-${order.id}">
-                            <td>${order.id}
-                            </td>
+                            <td>${order.id}</td>
                             <td>${formatDate(order.order_date)}</td>
                             <td>
                                 <div><strong>${order.customers.name}</strong></div>

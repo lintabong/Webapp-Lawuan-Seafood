@@ -92,10 +92,21 @@ def update_order_service(
     if not order:
         raise exceptions.ValidationError('Order not found')
 
-    if order['status'] != 'pending':
-        raise exceptions.ValidationError('Only pending orders editable')
-
     auth()
+
+    if order['status'] in ['paid','delivered', 'picked up'] and status == 'cancelled':
+        result = supabase.rpc('cancel_order_with_reversal', {
+            'p_order_id':order['id'],
+            'p_cash_id': 1,
+            'p_voided_by': user_id
+        }).execute().data[0]
+
+        return {
+            'success': True,
+            'order_id': result['order_id'],
+            'cash_balance': result['current_balance']
+        }
+
     result = supabase.rpc('update_order_full', {
         'p_order_id': order_id,
         'p_customer_id': customer_id,
